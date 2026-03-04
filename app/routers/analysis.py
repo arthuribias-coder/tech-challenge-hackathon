@@ -64,7 +64,7 @@ async def run_analysis(
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
     except ClientError as exc:
-        http_status = exc.status_code or 400
+        http_status = exc.code or 400
         if http_status == 429:
             detail = "Cota da API Gemini esgotada ou limite de requisições atingido. Tente novamente em alguns instantes."
         elif http_status in (401, 403):
