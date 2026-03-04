@@ -15,18 +15,18 @@
   // -----------------------------------------------------------------------
   // Referências DOM
   // -----------------------------------------------------------------------
-  const dropzone        = document.getElementById("dropzone");
-  const fileInput       = document.getElementById("diagram");
-  const placeholder     = document.getElementById("dropzone-placeholder");
-  const previewEl       = document.getElementById("dropzone-preview");
-  const previewImg      = document.getElementById("preview-img");
-  const previewName     = document.getElementById("preview-name");
-  const notesInput      = document.getElementById("notes");
-  const submitBtn       = document.getElementById("submit-btn");
-  const btnText         = document.getElementById("btn-text");
-  const btnLoading      = document.getElementById("btn-loading");
-  const stepperEl       = document.getElementById("analysis-stepper");
-  const reportSection   = document.getElementById("report-section");
+  const dropzone = document.getElementById("dropzone");
+  const fileInput = document.getElementById("diagram");
+  const placeholder = document.getElementById("dropzone-placeholder");
+  const previewEl = document.getElementById("dropzone-preview");
+  const previewImg = document.getElementById("preview-img");
+  const previewName = document.getElementById("preview-name");
+  const notesInput = document.getElementById("notes");
+  const submitBtn = document.getElementById("submit-btn");
+  const btnText = document.getElementById("btn-text");
+  const btnLoading = document.getElementById("btn-loading");
+  const stepperEl = document.getElementById("analysis-stepper");
+  const reportSection = document.getElementById("report-section");
 
   if (!dropzone) return; // página não é a de análise
 
@@ -34,21 +34,27 @@
   // Passos do stepper (alinhado ao NODE_LABELS do backend)
   // -----------------------------------------------------------------------
   const STEPS = [
-    { node: "detect_shapes",   label: "Detecção Visual",    icon: "🔍" },
-    { node: "map_components",   label: "Mapeamento",         icon: "🗺️" },
-    { node: "vision_fallback",  label: "IA Vision",          icon: "👁️" },
-    { node: "analyze_stride",   label: "STRIDE",             icon: "🛡️" },
-    { node: "compile_report",   label: "Relatório",          icon: "📋" },
+    { node: "detect_shapes", label: "Detecção Visual", icon: "🔍" },
+    { node: "map_components", label: "Mapeamento", icon: "🗺️" },
+    { node: "vision_fallback", label: "IA Vision", icon: "👁️" },
+    { node: "analyze_stride", label: "STRIDE", icon: "🛡️" },
+    { node: "compile_report", label: "Relatório", icon: "📋" },
   ];
 
   // -----------------------------------------------------------------------
   // Drag & drop
   // -----------------------------------------------------------------------
   ["dragenter", "dragover"].forEach((ev) =>
-    dropzone.addEventListener(ev, (e) => { e.preventDefault(); dropzone.classList.add("dropzone--active"); })
+    dropzone.addEventListener(ev, (e) => {
+      e.preventDefault();
+      dropzone.classList.add("dropzone--active");
+    }),
   );
   ["dragleave", "drop"].forEach((ev) =>
-    dropzone.addEventListener(ev, (e) => { e.preventDefault(); dropzone.classList.remove("dropzone--active"); })
+    dropzone.addEventListener(ev, (e) => {
+      e.preventDefault();
+      dropzone.classList.remove("dropzone--active");
+    }),
   );
   dropzone.addEventListener("drop", (e) => {
     const file = e.dataTransfer.files[0];
@@ -73,7 +79,7 @@
       previewImg.src = e.target.result;
       previewName.textContent = file.name;
       placeholder.style.display = "none";
-      previewEl.style.display   = "flex";
+      previewEl.style.display = "flex";
     };
     reader.readAsDataURL(file);
 
@@ -132,7 +138,9 @@
         try {
           const payload = JSON.parse(event.data);
           handleStreamEvent(payload, image_filename);
-        } catch (_) { /* ignora JSON inválido */ }
+        } catch (_) {
+          /* ignora JSON inválido */
+        }
       };
 
       evtSource.onerror = () => {
@@ -140,7 +148,6 @@
         setLoading(false);
         showToast("Conexão SSE perdida. Tente novamente.", "error");
       };
-
     } catch (err) {
       setLoading(false);
       showToast(err.message, "error");
@@ -167,28 +174,81 @@
   // -----------------------------------------------------------------------
   function clearStepper() {
     if (!stepperEl) return;
-    stepperEl.innerHTML = STEPS.map((s) =>
-      `<div class="step" id="step-${s.node}" data-node="${s.node}">
-        <div class="step__icon">${s.icon}</div>
-        <div class="step__label">${s.label}</div>
-        <div class="step__status"></div>
-       </div>`
-    ).join('<div class="step__connector"></div>');
+
+    // Barra de progresso + contador (inserida antes do stepper)
+    const container = document.getElementById("stepper-container");
+    const existingTop = container?.querySelector(".stepper-top");
+    if (existingTop) existingTop.remove();
+
+    if (container) {
+      const top = document.createElement("div");
+      top.className = "stepper-top";
+      top.innerHTML = `
+        <div class="stepper-progress-bar">
+          <div class="stepper-progress-fill" id="stepper-fill" style="width:0%"></div>
+        </div>
+        <p class="stepper-counter" id="stepper-counter">Iniciando an\u00e1lise\u2026</p>
+      `;
+      container.insertBefore(top, stepperEl);
+    }
+
+    // Gera etapas horizontais com connectors entre elas
+    const parts = [];
+    STEPS.forEach((s, i) => {
+      parts.push(
+        `<div class="step" id="step-${s.node}" data-idx="${i}">
+          <div class="step__icon"><span class="step__emoji">${s.icon}</span></div>
+          <div class="step__label">${s.label}</div>
+        </div>`
+      );
+      if (i < STEPS.length - 1) {
+        parts.push(`<div class="step__track" id="track-${i}"></div>`);
+      }
+    });
+
+    stepperEl.innerHTML = parts.join("");
     stepperEl.style.display = "flex";
   }
 
   function activateStep(nodeName) {
-    // Marca o passo anterior como concluído
-    stepperEl?.querySelectorAll(".step--active").forEach((el) => {
-      el.classList.remove("step--active");
-      el.classList.add("step--done");
-      el.querySelector(".step__status").textContent = "✓";
+    const activeIdx = STEPS.findIndex((s) => s.node === nodeName);
+    if (activeIdx === -1) return;
+
+    // Marca etapas anteriores como conclu\u00eddas
+    stepperEl?.querySelectorAll(".step").forEach((el) => {
+      const idx = parseInt(el.dataset.idx);
+      if (idx < activeIdx) {
+        el.classList.remove("step--active");
+        el.classList.add("step--done");
+        const emoji = el.querySelector(".step__emoji");
+        if (emoji) emoji.textContent = "\u2713";
+        const track = document.getElementById(`track-${idx}`);
+        if (track) { track.classList.remove("step__track--active"); track.classList.add("step__track--done"); }
+      }
     });
 
+    // Marca conector anterior como ativo (preenchimento parcial)
+    if (activeIdx > 0) {
+      const prevTrack = document.getElementById(`track-${activeIdx - 1}`);
+      if (prevTrack) { prevTrack.classList.remove("step__track--active"); prevTrack.classList.add("step__track--done"); }
+    }
+    const currTrack = document.getElementById(`track-${activeIdx}`);
+    if (currTrack) currTrack.classList.add("step__track--active");
+
+    // Ativa etapa atual
     const step = stepperEl?.querySelector(`#step-${nodeName}`);
-    if (step) {
-      step.classList.add("step--active");
-      step.querySelector(".step__status").textContent = "...";
+    if (step) step.classList.add("step--active");
+
+    // Atualiza barra de progresso
+    const pct = Math.round((activeIdx / STEPS.length) * 100);
+    const fill = document.getElementById("stepper-fill");
+    if (fill) fill.style.width = `${pct}%`;
+
+    // Atualiza contador
+    const counter = document.getElementById("stepper-counter");
+    const stepObj = STEPS[activeIdx];
+    if (counter && stepObj) {
+      counter.textContent = `Etapa ${activeIdx + 1} de ${STEPS.length}\u00a0\u00b7\u00a0${stepObj.label}\u2026`;
     }
   }
 
@@ -196,8 +256,19 @@
     stepperEl?.querySelectorAll(".step").forEach((el) => {
       el.classList.remove("step--active");
       el.classList.add("step--done");
-      el.querySelector(".step__status").textContent = "✓";
+      const emoji = el.querySelector(".step__emoji");
+      if (emoji) emoji.textContent = "\u2713";
     });
+    stepperEl?.querySelectorAll(".step__track").forEach((t) => {
+      t.classList.remove("step__track--active");
+      t.classList.add("step__track--done");
+    });
+
+    const fill = document.getElementById("stepper-fill");
+    if (fill) fill.style.width = "100%";
+
+    const counter = document.getElementById("stepper-counter");
+    if (counter) counter.textContent = `An\u00e1lise conclu\u00edda \u2014 ${STEPS.length} etapas processadas \u2713`;
   }
 
   // -----------------------------------------------------------------------
@@ -213,12 +284,11 @@
       strideCounts[t.stride_category] = (strideCounts[t.stride_category] || 0) + 1;
     });
 
-    const highCount   = threats.filter((t) => t.severity === "Alta").length;
+    const highCount = threats.filter((t) => t.severity === "Alta").length;
     const mediumCount = threats.filter((t) => t.severity === "Média").length;
-    const lowCount    = threats.filter((t) => t.severity === "Baixa").length;
+    const lowCount = threats.filter((t) => t.severity === "Baixa").length;
 
-    const CAT_MAP = { S: "Spoofing", T: "Tampering", R: "Repudiation",
-                      I: "Information Disclosure", D: "Denial of Service", E: "Elevation of Privilege" };
+    const CAT_MAP = { S: "Spoofing", T: "Tampering", R: "Repudiation", I: "Information Disclosure", D: "Denial of Service", E: "Elevation of Privilege" };
     const KEY_MAP = Object.fromEntries(Object.entries(CAT_MAP).map(([k, v]) => [v, k]));
 
     reportSection.innerHTML = `
@@ -238,11 +308,15 @@
         </div>
       </div>
 
-      ${report.summary ? `
+      ${
+        report.summary
+          ? `
       <div class="card">
         <h3 class="section-title">Resumo Executivo</h3>
         <div class="summary-text">${report.summary}</div>
-      </div>` : ""}
+      </div>`
+          : ""
+      }
 
       <div class="stats-row">
         <div class="stat-card stat-card--high">
@@ -271,12 +345,18 @@
         <div class="card chart-card">
           <h3 class="section-title">Componentes Identificados</h3>
           <div class="components-grid">
-            ${components.map((c) => `
+            ${
+              components
+                .map(
+                  (c) => `
               <div class="component-card">
                 <div class="component-card__type">${escHtml(c.component_type)}</div>
                 <div class="component-card__name">${escHtml(c.name)}</div>
                 <div class="component-card__desc">${escHtml(c.description)}</div>
-              </div>`).join("") || '<p class="empty-state">Nenhum componente.</p>'}
+              </div>`,
+                )
+                .join("") || '<p class="empty-state">Nenhum componente.</p>'
+            }
           </div>
         </div>
       </div>
@@ -285,15 +365,17 @@
         <h3 class="section-title">Ameaças Identificadas</h3>
         <div class="filter-bar">
           <button class="filter-btn filter-btn--active" data-filter="all">Todas</button>
-          ${Object.entries(CAT_MAP).map(([k, v]) =>
-            `<button class="filter-btn stride-btn--${k}" data-filter="${v}">${k} — ${v.split(" ")[0]}</button>`
-          ).join("")}
+          ${Object.entries(CAT_MAP)
+            .map(([k, v]) => `<button class="filter-btn stride-btn--${k}" data-filter="${v}">${k} — ${v.split(" ")[0]}</button>`)
+            .join("")}
         </div>
         <div class="threats-list" id="threats-list">
-          ${threats.map((t) => {
-            const catKey = KEY_MAP[t.stride_category] || "S";
-            const sevClass = t.severity?.toLowerCase().replace("é","e") || "baixa";
-            return `
+          ${
+            threats
+              .map((t) => {
+                const catKey = KEY_MAP[t.stride_category] || "S";
+                const sevClass = t.severity?.toLowerCase().replace("é", "e") || "baixa";
+                return `
               <div class="threat-card threat-card--${sevClass}" data-category="${escHtml(t.stride_category)}">
                 <div class="threat-card__header">
                   <span class="stride-badge stride-badge--${catKey}">${catKey} — ${escHtml(t.stride_category)}</span>
@@ -307,7 +389,9 @@
                   <ul>${(t.countermeasures || []).map((cm) => `<li>${escHtml(cm)}</li>`).join("")}</ul>
                 </div>
               </div>`;
-          }).join("") || '<p class="empty-state">Nenhuma ameaça identificada.</p>'}
+              })
+              .join("") || '<p class="empty-state">Nenhuma ameaça identificada.</p>'
+          }
         </div>
       </div>`;
 
@@ -338,8 +422,8 @@
     if (!ctx || typeof Chart === "undefined") return;
 
     const labels = Object.keys(counts);
-    const data   = Object.values(counts);
-    const colors = ["#7c3aed","#2563eb","#d97706","#dc2626","#16a34a","#0891b2"];
+    const data = Object.values(counts);
+    const colors = ["#7c3aed", "#2563eb", "#d97706", "#dc2626", "#16a34a", "#0891b2"];
 
     new Chart(ctx, {
       type: "doughnut",
@@ -361,7 +445,7 @@
   // -----------------------------------------------------------------------
   function setLoading(loading) {
     submitBtn.disabled = loading;
-    btnText.style.display    = loading ? "none" : "inline";
+    btnText.style.display = loading ? "none" : "inline";
     btnLoading.style.display = loading ? "inline" : "none";
   }
 
@@ -378,10 +462,6 @@
 
   function escHtml(str) {
     if (!str) return "";
-    return String(str)
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;");
+    return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
   }
 })();
