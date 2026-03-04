@@ -114,59 +114,54 @@
     {% endfor %}
   </div>
 </div>
-{% endblock %}
-{% block scripts %}
+{% endblock %} {% block scripts %}
 <script>
-// Filtro por categoria
-document.querySelectorAll(".filter-btn").forEach((btn) => {
-  btn.addEventListener("click", () => {
-    document.querySelectorAll(".filter-btn").forEach((b) => b.classList.remove("filter-btn--active"));
-    btn.classList.add("filter-btn--active");
-    const filter = btn.dataset.filter;
-    document.querySelectorAll(".threat-card").forEach((card) => {
-      card.style.display = (filter === "all" || card.dataset.category === filter) ? "" : "none";
+  // Filtro por categoria
+  document.querySelectorAll(".filter-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".filter-btn").forEach((b) => b.classList.remove("filter-btn--active"));
+      btn.classList.add("filter-btn--active");
+      const filter = btn.dataset.filter;
+      document.querySelectorAll(".threat-card").forEach((card) => {
+        card.style.display = filter === "all" || card.dataset.category === filter ? "" : "none";
+      });
     });
   });
-});
 
-// Graficos Chart.js
-(function() {
-  const threats = document.querySelectorAll(".threat-card");
-  const strideCategories = ["Spoofing","Tampering","Repudiation","Information Disclosure","Denial of Service","Elevation of Privilege"];
-  const strideCounts = strideCategories.map(cat =>
-    [...threats].filter(t => t.dataset.category === cat).length
-  );
-  const strideColors = ["#e74c3c","#e67e22","#f39c12","#3498db","#9b59b6","#2ecc71"];
+  // Graficos Chart.js
+  (function () {
+    const threats = document.querySelectorAll(".threat-card");
+    const strideCategories = ["Spoofing", "Tampering", "Repudiation", "Information Disclosure", "Denial of Service", "Elevation of Privilege"];
+    const strideCounts = strideCategories.map((cat) => [...threats].filter((t) => t.dataset.category === cat).length);
+    const strideColors = ["#e74c3c", "#e67e22", "#f39c12", "#3498db", "#9b59b6", "#2ecc71"];
 
-  const ctxStride = document.getElementById("stride-chart");
-  if (ctxStride) {
-    new Chart(ctxStride, {
-      type: "doughnut",
-      data: { labels: strideCategories, datasets: [{ data: strideCounts, backgroundColor: strideColors, borderWidth: 2 }] },
-      options: { plugins: { legend: { position: "bottom", labels: { font: { size: 11 } } } }, cutout: "60%" }
-    });
-  }
+    const ctxStride = document.getElementById("stride-chart");
+    if (ctxStride) {
+      new Chart(ctxStride, {
+        type: "doughnut",
+        data: { labels: strideCategories, datasets: [{ data: strideCounts, backgroundColor: strideColors, borderWidth: 2 }] },
+        options: { plugins: { legend: { position: "bottom", labels: { font: { size: 11 } } } }, cutout: "60%" },
+      });
+    }
 
-  const severities = ["Alta","Media","Baixa"];
-  const sevCounts = severities.map(sev =>
-    [...threats].filter(t => t.className.includes(sev.toLowerCase().replace('e','e'))).length
-  );
-  // Count by data attribute
-  const highCount = [...document.querySelectorAll(".stat-card--high .stat-card__number")].map(e=>parseInt(e.textContent)||0).reduce((a,b)=>a+b,0);
-  const medCount = [...document.querySelectorAll(".stat-card--medium .stat-card__number")].map(e=>parseInt(e.textContent)||0).reduce((a,b)=>a+b,0);
-  const lowCount = [...document.querySelectorAll(".stat-card--low .stat-card__number")].map(e=>parseInt(e.textContent)||0).reduce((a,b)=>a+b,0);
+    const severities = ["Alta", "Media", "Baixa"];
+    const sevCounts = severities.map((sev) => [...threats].filter((t) => t.className.includes(sev.toLowerCase().replace("e", "e"))).length);
+    // Count by data attribute
+    const highCount = [...document.querySelectorAll(".stat-card--high .stat-card__number")].map((e) => parseInt(e.textContent) || 0).reduce((a, b) => a + b, 0);
+    const medCount = [...document.querySelectorAll(".stat-card--medium .stat-card__number")].map((e) => parseInt(e.textContent) || 0).reduce((a, b) => a + b, 0);
+    const lowCount = [...document.querySelectorAll(".stat-card--low .stat-card__number")].map((e) => parseInt(e.textContent) || 0).reduce((a, b) => a + b, 0);
 
-  const ctxSev = document.getElementById("severity-chart");
-  if (ctxSev) {
-    new Chart(ctxSev, {
-      type: "doughnut",
-      data: {
-        labels: ["Alta","Media","Baixa"],
-        datasets: [{ data: [highCount, medCount, lowCount], backgroundColor: ["#e74c3c","#f39c12","#2ecc71"], borderWidth: 2 }]
-      },
-      options: { plugins: { legend: { position: "bottom", labels: { font: { size: 11 } } } }, cutout: "60%" }
-    });
-  }
-})();
+    const ctxSev = document.getElementById("severity-chart");
+    if (ctxSev) {
+      new Chart(ctxSev, {
+        type: "doughnut",
+        data: {
+          labels: ["Alta", "Media", "Baixa"],
+          datasets: [{ data: [highCount, medCount, lowCount], backgroundColor: ["#e74c3c", "#f39c12", "#2ecc71"], borderWidth: 2 }],
+        },
+        options: { plugins: { legend: { position: "bottom", labels: { font: { size: 11 } } } }, cutout: "60%" },
+      });
+    }
+  })();
 </script>
 {% endblock %}

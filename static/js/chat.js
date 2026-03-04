@@ -16,12 +16,12 @@
   // -----------------------------------------------------------------------
   // Referências DOM
   // -----------------------------------------------------------------------
-  const sessionListEl   = document.getElementById("session-list");
-  const newSessionBtn   = document.getElementById("new-session-btn");
-  const messagesEl      = document.getElementById("chat-messages");
-  const inputEl         = document.getElementById("chat-input");
-  const sendBtn         = document.getElementById("chat-send-btn");
-  const sessionTitleEl  = document.getElementById("session-title");
+  const sessionListEl = document.getElementById("session-list");
+  const newSessionBtn = document.getElementById("new-session-btn");
+  const messagesEl = document.getElementById("chat-messages");
+  const inputEl = document.getElementById("chat-input");
+  const sendBtn = document.getElementById("chat-send-btn");
+  const sessionTitleEl = document.getElementById("session-title");
 
   if (!messagesEl) return;
 
@@ -29,8 +29,8 @@
   // Estado
   // -----------------------------------------------------------------------
   const STORAGE_KEY = "stride_chat_sessions";
-  let currentSessionId  = null;
-  let isStreaming       = false;
+  let currentSessionId = null;
+  let isStreaming = false;
 
   // -----------------------------------------------------------------------
   // Configuração do Markdown
@@ -39,12 +39,13 @@
     marked.setOptions({
       breaks: true,
       gfm: true,
-      highlight: typeof hljs !== "undefined"
-        ? (code, lang) => {
-            const language = hljs.getLanguage(lang) ? lang : "plaintext";
-            return hljs.highlight(code, { language }).value;
-          }
-        : null,
+      highlight:
+        typeof hljs !== "undefined"
+          ? (code, lang) => {
+              const language = hljs.getLanguage(lang) ? lang : "plaintext";
+              return hljs.highlight(code, { language }).value;
+            }
+          : null,
     });
   }
 
@@ -64,7 +65,7 @@
   }
 
   function createSession() {
-    const id    = crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36);
+    const id = crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36);
     const title = "Nova conversa";
     const sessions = loadSessions();
     sessions[id] = { id, title, messages: [], createdAt: Date.now() };
@@ -96,15 +97,19 @@
   function renderSessionList() {
     if (!sessionListEl) return;
     const sessions = loadSessions();
-    const sorted   = Object.values(sessions).sort((a, b) => b.createdAt - a.createdAt);
+    const sorted = Object.values(sessions).sort((a, b) => b.createdAt - a.createdAt);
 
-    sessionListEl.innerHTML = sorted.map((s) => `
+    sessionListEl.innerHTML =
+      sorted
+        .map(
+          (s) => `
       <div class="session-item ${s.id === currentSessionId ? "session-item--active" : ""}"
            data-id="${s.id}">
         <span class="session-item__title">${escHtml(s.title)}</span>
         <button class="session-item__del" data-del="${s.id}" title="Excluir">×</button>
-      </div>`
-    ).join("") || '<p class="session-empty">Nenhuma conversa</p>';
+      </div>`,
+        )
+        .join("") || '<p class="session-empty">Nenhuma conversa</p>';
 
     // Eventos
     sessionListEl.querySelectorAll(".session-item").forEach((el) => {
@@ -250,12 +255,19 @@
         for (const line of lines) {
           if (!line.startsWith("data: ")) continue;
           const data = line.slice(6).trim();
-          if (data === "[DONE]") { isStreaming = false; break; }
+          if (data === "[DONE]") {
+            isStreaming = false;
+            break;
+          }
 
           try {
             const payload = JSON.parse(data);
-            handleChatEvent(payload, bubbleEl, toolBadgeEl, (t) => { fullReply += t; });
-          } catch (_) { /* ignora JSON inválido */ }
+            handleChatEvent(payload, bubbleEl, toolBadgeEl, (t) => {
+              fullReply += t;
+            });
+          } catch (_) {
+            /* ignora JSON inválido */
+          }
         }
       }
     } catch (err) {
@@ -305,7 +317,7 @@
   // -----------------------------------------------------------------------
   function appendMessageEl(role, content, streaming) {
     const isUser = role === "user";
-    const div    = document.createElement("div");
+    const div = document.createElement("div");
     div.className = `chat-msg chat-msg--${isUser ? "user" : "assistant"}`;
 
     const avatar = document.createElement("div");
@@ -322,7 +334,7 @@
       bubble.textContent = content;
     } else if (content) {
       bubble.dataset.raw = content;
-      bubble.innerHTML   = typeof marked !== "undefined" ? marked.parse(content) : content;
+      bubble.innerHTML = typeof marked !== "undefined" ? marked.parse(content) : content;
       addCopyButtons(bubble);
     }
 
@@ -369,7 +381,9 @@
       btn.addEventListener("click", () => {
         navigator.clipboard?.writeText(pre.querySelector("code")?.textContent || "");
         btn.textContent = "Copiado!";
-        setTimeout(() => { btn.textContent = "Copiar"; }, 2000);
+        setTimeout(() => {
+          btn.textContent = "Copiar";
+        }, 2000);
       });
       pre.style.position = "relative";
       pre.appendChild(btn);
@@ -390,11 +404,7 @@
 
   function escHtml(str) {
     if (!str) return "";
-    return String(str)
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;");
+    return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
   }
 
   // -----------------------------------------------------------------------
