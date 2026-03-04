@@ -1,34 +1,33 @@
-{% extends "base.html" %}
-{% block title %}Chat STRIDE — STRIDE Threat Modeler{% endblock %}
-{% block nav_chat %}nav-active{% endblock %}
-
-{% block content %}
+{% extends "base.html" %} {% block title %}Chat STRIDE — STRIDE Threat Modeler{% endblock %} {% block nav_chat %}nav-active{% endblock %} {% block main_class %}chat-wrapper{% endblock %} {% block content %}
 <div class="chat-layout">
-  <- Libera video_capture e limpa buffers de Sidebar: sessoes -->
+  <!-- Sidebar: sessoes -->
   <aside class="chat-sidebar">
     <div class="chat-sidebar__header">
       <span class="chat-sidebar__title">Conversas</span>
-      <button class="btn btn--ghost btn--sm" id="new-session-btn" title="Nova conversa">
-        + Nova
-      </button>
+      <button class="btn btn--ghost btn--sm" id="new-session-btn" title="Nova conversa">+ Nova</button>
     </div>
     <ul class="session-list" id="session-list">
-      <- Libera video_capture e limpa buffers de Preenchido pelo chat.js -->
+      <!-- Preenchido pelo chat.js -->
     </ul>
-    <div class="session-empty" id="session-empty" style="display:none">
+    <div class="session-empty" id="session-empty" style="display: none">
       <p>Nenhuma conversa ainda.</p>
     </div>
     <div class="chat-sidebar__footer">
-      <p class="chat-sidebar__hint">
-        Pergunte sobre ameacas STRIDE, scores de risco,
-        MITRE ATT&amp;CK ou controles OWASP.
-      </p>
+      <p class="chat-sidebar__hint">Pergunte sobre ameacas STRIDE, scores de risco, MITRE ATT&amp;CK ou controles OWASP.</p>
     </div>
   </aside>
 
-  <- Libera video_capture e limpa buffers de Area principal -->
+  <!-- Area principal -->
+  <div class="chat-sidebar-overlay" id="chat-sidebar-overlay"></div>
   <main class="chat-main">
     <header class="chat-header">
+      <button class="chat-sidebar-toggle" id="chat-sidebar-toggle" aria-label="Alternar painel de conversas">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18" aria-hidden="true">
+          <line x1="3" y1="6" x2="21" y2="6" />
+          <line x1="3" y1="12" x2="21" y2="12" />
+          <line x1="3" y1="18" x2="21" y2="18" />
+        </svg>
+      </button>
       <span class="chat-header__title" id="session-title">Nova Conversa</span>
     </header>
 
@@ -37,41 +36,45 @@
         <h2>Assistente STRIDE</h2>
         <p>Pergunte qualquer coisa sobre modelagem de ameacas, analise de riscos e seguranca de aplicacoes.</p>
         <div class="suggestions-grid">
-          <button class="suggestion-btn" data-msg="O que e STRIDE e como utilizar na minha aplicacao?">
-            O que e STRIDE?
-          </button>
-          <button class="suggestion-btn" data-msg="Como calcular o score de risco de uma ameaca critica com alta probabilidade?">
-            Como calcular risco?
-          </button>
-          <button class="suggestion-btn" data-msg="Quais tecnicas do MITRE ATT&CK se relacionam com Spoofing?">
-            MITRE ATT&amp;CK e Spoofing
-          </button>
-          <button class="suggestion-btn" data-msg="Quais controles OWASP protegem contra SQL Injection?">
-            OWASP para SQLi
-          </button>
+          <button class="suggestion-btn" data-msg="O que e STRIDE e como utilizar na minha aplicacao?">O que e STRIDE?</button>
+          <button class="suggestion-btn" data-msg="Como calcular o score de risco de uma ameaca critica com alta probabilidade?">Como calcular risco?</button>
+          <button class="suggestion-btn" data-msg="Quais tecnicas do MITRE ATT&CK se relacionam com Spoofing?">MITRE ATT&amp;CK e Spoofing</button>
+          <button class="suggestion-btn" data-msg="Quais controles OWASP protegem contra SQL Injection?">OWASP para SQLi</button>
         </div>
       </div>
     </div>
 
     <footer class="chat-input-bar">
       <div class="chat-input-wrapper">
-        <textarea
-          id="chat-input"
-          class="chat-input"
-          placeholder="Pergunte sobre STRIDE, ameacas, riscos..."
-          rows="1"
-          autofocus
-        ></textarea>
+        <textarea id="chat-input" class="chat-input" placeholder="Pergunte sobre STRIDE, ameacas, riscos..." rows="1" autofocus></textarea>
         <button class="btn btn--primary chat-send-btn" id="chat-send-btn" disabled>&#9654;</button>
       </div>
-      <p class="chat-input-hint">
-        <kbd>Ctrl+Enter</kbd> para enviar &mdash; <kbd>Enter</kbd> nova linha
-      </p>
+      <p class="chat-input-hint"><kbd>Ctrl+Enter</kbd> para enviar &mdash; <kbd>Enter</kbd> nova linha</p>
     </footer>
   </main>
 </div>
-{% endblock %}
-
-{% block scripts %}
+{% endblock %} {% block scripts %}
 <script src="/static/js/chat.js"></script>
+<script>
+  (function () {
+    const toggle = document.getElementById("chat-sidebar-toggle");
+    const sidebar = document.querySelector(".chat-sidebar");
+    const overlay = document.getElementById("chat-sidebar-overlay");
+    if (!toggle || !sidebar) return;
+    function openSidebar() {
+      sidebar.classList.add("chat-sidebar--open");
+      overlay.classList.add("chat-sidebar-overlay--visible");
+      document.body.style.overflow = "hidden";
+    }
+    function closeSidebar() {
+      sidebar.classList.remove("chat-sidebar--open");
+      overlay.classList.remove("chat-sidebar-overlay--visible");
+      document.body.style.overflow = "";
+    }
+    toggle.addEventListener("click", function () {
+      sidebar.classList.contains("chat-sidebar--open") ? closeSidebar() : openSidebar();
+    });
+    overlay.addEventListener("click", closeSidebar);
+  })();
+</script>
 {% endblock %}
