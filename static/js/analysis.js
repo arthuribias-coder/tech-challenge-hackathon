@@ -199,7 +199,7 @@
         `<div class="step" id="step-${s.node}" data-idx="${i}">
           <div class="step__icon"><span class="step__emoji">${s.icon}</span></div>
           <div class="step__label">${s.label}</div>
-        </div>`
+        </div>`,
       );
       if (i < STEPS.length - 1) {
         parts.push(`<div class="step__track" id="track-${i}"></div>`);
@@ -223,14 +223,20 @@
         const emoji = el.querySelector(".step__emoji");
         if (emoji) emoji.textContent = "\u2713";
         const track = document.getElementById(`track-${idx}`);
-        if (track) { track.classList.remove("step__track--active"); track.classList.add("step__track--done"); }
+        if (track) {
+          track.classList.remove("step__track--active");
+          track.classList.add("step__track--done");
+        }
       }
     });
 
     // Marca conector anterior como ativo (preenchimento parcial)
     if (activeIdx > 0) {
       const prevTrack = document.getElementById(`track-${activeIdx - 1}`);
-      if (prevTrack) { prevTrack.classList.remove("step__track--active"); prevTrack.classList.add("step__track--done"); }
+      if (prevTrack) {
+        prevTrack.classList.remove("step__track--active");
+        prevTrack.classList.add("step__track--done");
+      }
     }
     const currTrack = document.getElementById(`track-${activeIdx}`);
     if (currTrack) currTrack.classList.add("step__track--active");
