@@ -1,12 +1,25 @@
+"""
+Router do chat agêntico STRIDE.
+
+Endpoints:
+  GET  /chat/                → página do chat
+  POST /chat/message/stream  → SSE streaming (tokens individuais + tool use)
+  POST /chat/sessions        → lista sessões (histórico do MemorySaver)
+"""
+
+from __future__ import annotations
+
+import json
 import logging
+import uuid
 
 from fastapi import APIRouter, HTTPException, Request, status
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
-from google.genai.errors import ClientError, ServerError
+from langchain_core.messages import HumanMessage
 from pydantic import BaseModel, Field
 
-from app.services.chat_service import send_message
+from app.graphs.chat_graph import chat_graph
 
 logger = logging.getLogger(__name__)
 
@@ -14,18 +27,28 @@ router = APIRouter(prefix="/chat", tags=["chat"])
 templates = Jinja2Templates(directory="app/templates")
 
 
-class ChatMessage(BaseModel):
-    role: str = Field(description="'user' ou 'assistant'")
-    content: str
+# ---------------------------------------------------------------------------
+# Schemas
+# ---------------------------------------------------------------------------
 
 
-class ChatRequest(BaseModel):
+class ChatStreamRequest(BaseModel):
     message: str = Field(min_length=1, max_length=4000)
-    history: list[ChatMessage] = Field(default_factory=list)
+    session_id: str = Field(default_factory=lambda: uuid.uuid4().hex)
 
 
-class ChatResponse(BaseModel):
-    reply: str
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+
+def _sse(payload: dict) -> str:
+    return f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
+
+
+# ---------------------------------------------------------------------------
+# Endpoints
+# ---------------------------------------------------------------------------
 
 
 @router.get("/", response_class=HTMLResponse)
@@ -34,36 +57,62 @@ async def chat_page(request: Request) -> HTMLResponse:
     return templates.TemplateResponse("chat.html", {"request": request})
 
 
-@router.post("/message", response_model=ChatResponse)
-async def chat_message(body: ChatRequest) -> ChatResponse:
+@router.post("/message/stream")
+async def chat_stream(body: ChatStreamRequest) -> StreamingResponse:
     """
-    Recebe uma mensagem do usuário e retorna a resposta do Gemini.
-    O histórico é mantido no frontend e enviado a cada requisição.
+    Envia mensagem ao agente ReAct e faz streaming dos tokens via SSE.
+
+    Tipos de evento:
+      {"type": "token",    "content": "..."}   ← fragmento de resposta
+      {"type": "tool_use", "name": "..."}       ← agente usando uma ferramenta
+      {"type": "tool_result", "name": "...", "result": "..."}
+      {"type": "error",    "message": "..."}
     """
-    try:
-        history = [msg.model_dump() for msg in body.history]
-        reply = await send_message(body.message, history)
-        return ChatResponse(reply=reply)
-    except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
-    except ClientError as exc:
-        http_status = exc.code or 400
-        if http_status == 429:
-            detail = "Cota da API Gemini esgotada ou limite de requisições atingido. Tente novamente em alguns instantes."
-        elif http_status in (401, 403):
-            detail = "Chave de API Gemini inválida ou sem permissão. Verifique a variável GEMINI_API_KEY."
-        else:
-            detail = f"Erro da API Gemini: {exc}"
-        raise HTTPException(status_code=http_status, detail=detail) from exc
-    except ServerError as exc:
-        logger.error("Erro no servidor Gemini: %s", exc)
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="O servidor da API Gemini retornou um erro. Tente novamente.",
-        ) from exc
-    except Exception as exc:
-        logger.exception("Erro inesperado no chat: %s", exc)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Erro ao processar a mensagem. Tente novamente.",
-        ) from exc
+
+    async def token_generator():
+        config = {"configurable": {"thread_id": body.session_id}}
+        try:
+            async for event in chat_graph.astream_events(
+                {"messages": [HumanMessage(content=body.message)]},
+                config=config,
+                version="v2",
+            ):
+                event_type = event.get("event", "")
+                name = event.get("name", "")
+
+                if event_type == "on_chat_model_stream":
+                    chunk = event["data"].get("chunk")
+                    if chunk and hasattr(chunk, "content") and chunk.content:
+                        content = chunk.content
+                        if isinstance(content, str):
+                            yield _sse({"type": "token", "content": content})
+                        elif isinstance(content, list):
+                            # Gemini pode retornar lista de parts
+                            for part in content:
+                                if isinstance(part, dict) and part.get("type") == "text":
+                                    yield _sse({"type": "token", "content": part["text"]})
+
+                elif event_type == "on_tool_start":
+                    tool_name = name.replace("_", " ").title()
+                    yield _sse({"type": "tool_use", "name": tool_name})
+
+                elif event_type == "on_tool_end":
+                    output = event["data"].get("output", "")
+                    tool_name = name.replace("_", " ").title()
+                    yield _sse({"type": "tool_result", "name": tool_name, "result": str(output)[:500]})
+
+        except Exception as exc:
+            logger.error("Erro no chat stream: %s", exc, exc_info=True)
+            yield _sse({"type": "error", "message": str(exc)})
+
+        yield "data: [DONE]\n\n"
+
+    return StreamingResponse(
+        token_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )

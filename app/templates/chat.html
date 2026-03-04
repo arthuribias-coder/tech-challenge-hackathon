@@ -1,229 +1,77 @@
 {% extends "base.html" %}
-
-{% block title %}Chat — Assistente STRIDE{% endblock %}
-
-{% block head %}
-<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-{% endblock %}
+{% block title %}Chat STRIDE — STRIDE Threat Modeler{% endblock %}
+{% block nav_chat %}nav-active{% endblock %}
 
 {% block content %}
 <div class="chat-layout">
-  <!-- Sidebar de sugestões -->
+  <- Libera video_capture e limpa buffers de Sidebar: sessoes -->
   <aside class="chat-sidebar">
-    <h2 class="chat-sidebar__title">Assistente STRIDE</h2>
-    <p class="chat-sidebar__desc">
-      Especialista em modelagem de ameaças e segurança de sistemas. Pergunte sobre
-      arquiteturas, vulnerabilidades, contramedidas e boas práticas.
-    </p>
-
-    <div class="chat-sidebar__section">
-      <p class="chat-sidebar__label">Sugestões</p>
-      <button class="suggestion-btn" data-msg="Quais são as principais ameaças de Spoofing em uma API REST?">
-        Ameaças de Spoofing em APIs REST
-      </button>
-      <button class="suggestion-btn" data-msg="Como implementar defesa em profundidade (Defense in Depth) em uma arquitetura de microserviços?">
-        Defense in Depth em microserviços
-      </button>
-      <button class="suggestion-btn" data-msg="Explique como aplicar a metodologia STRIDE em um sistema de e-commerce com pagamentos.">
-        STRIDE em e-commerce com pagamentos
-      </button>
-      <button class="suggestion-btn" data-msg="Quais contramedidas devo aplicar para prevenir Elevation of Privilege em um sistema cloud-native?">
-        Prevenir Elevation of Privilege na nuvem
-      </button>
-      <button class="suggestion-btn" data-msg="Como o Zero Trust Architecture se relaciona com as categorias do STRIDE?">
-        Zero Trust e STRIDE
+    <div class="chat-sidebar__header">
+      <span class="chat-sidebar__title">Conversas</span>
+      <button class="btn btn--ghost btn--sm" id="new-session-btn" title="Nova conversa">
+        + Nova
       </button>
     </div>
-
-    <button class="btn btn--secondary chat-sidebar__clear" id="clear-chat-btn">
-      Limpar conversa
-    </button>
+    <ul class="session-list" id="session-list">
+      <- Libera video_capture e limpa buffers de Preenchido pelo chat.js -->
+    </ul>
+    <div class="session-empty" id="session-empty" style="display:none">
+      <p>Nenhuma conversa ainda.</p>
+    </div>
+    <div class="chat-sidebar__footer">
+      <p class="chat-sidebar__hint">
+        Pergunte sobre ameacas STRIDE, scores de risco,
+        MITRE ATT&amp;CK ou controles OWASP.
+      </p>
+    </div>
   </aside>
 
-  <!-- Área principal do chat -->
-  <section class="chat-main">
+  <- Libera video_capture e limpa buffers de Area principal -->
+  <main class="chat-main">
+    <header class="chat-header">
+      <span class="chat-header__title" id="session-title">Nova Conversa</span>
+    </header>
+
     <div class="chat-messages" id="chat-messages">
-      <!-- Mensagem de boas-vindas -->
-      <div class="chat-msg chat-msg--assistant">
-        <div class="chat-msg__avatar chat-msg__avatar--assistant">G</div>
-        <div class="chat-msg__bubble">
-          <p>
-            Olá! Sou seu assistente especialista em <strong>Modelagem de Ameaças STRIDE</strong> e segurança de sistemas.
-          </p>
-          <p style="margin-top:.5rem;">
-            Posso ajudá-lo a identificar vulnerabilidades em arquiteturas de software,
-            sugerir contramedidas específicas e esclarecer dúvidas sobre segurança.
-            Como posso ajudar?
-          </p>
+      <div class="chat-welcome">
+        <h2>Assistente STRIDE</h2>
+        <p>Pergunte qualquer coisa sobre modelagem de ameacas, analise de riscos e seguranca de aplicacoes.</p>
+        <div class="suggestions-grid">
+          <button class="suggestion-btn" data-msg="O que e STRIDE e como utilizar na minha aplicacao?">
+            O que e STRIDE?
+          </button>
+          <button class="suggestion-btn" data-msg="Como calcular o score de risco de uma ameaca critica com alta probabilidade?">
+            Como calcular risco?
+          </button>
+          <button class="suggestion-btn" data-msg="Quais tecnicas do MITRE ATT&CK se relacionam com Spoofing?">
+            MITRE ATT&amp;CK e Spoofing
+          </button>
+          <button class="suggestion-btn" data-msg="Quais controles OWASP protegem contra SQL Injection?">
+            OWASP para SQLi
+          </button>
         </div>
       </div>
     </div>
 
-    <!-- Input -->
-    <div class="chat-input-area">
+    <footer class="chat-input-bar">
       <div class="chat-input-wrapper">
         <textarea
           id="chat-input"
           class="chat-input"
-          placeholder="Descreva sua arquitetura ou faça uma pergunta sobre segurança..."
+          placeholder="Pergunte sobre STRIDE, ameacas, riscos..."
           rows="1"
-          maxlength="4000"
+          autofocus
         ></textarea>
-        <button class="chat-send-btn" id="chat-send-btn" aria-label="Enviar mensagem" disabled>
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
-            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
-          </svg>
-        </button>
+        <button class="btn btn--primary chat-send-btn" id="chat-send-btn" disabled>&#9654;</button>
       </div>
-      <p class="chat-input-hint">Pressione <kbd>Enter</kbd> para enviar · <kbd>Shift+Enter</kbd> para nova linha</p>
-    </div>
-  </section>
+      <p class="chat-input-hint">
+        <kbd>Ctrl+Enter</kbd> para enviar &mdash; <kbd>Enter</kbd> nova linha
+      </p>
+    </footer>
+  </main>
 </div>
 {% endblock %}
 
 {% block scripts %}
-<script>
-(function () {
-  "use strict";
-
-  const messagesEl = document.getElementById("chat-messages");
-  const inputEl = document.getElementById("chat-input");
-  const sendBtn = document.getElementById("chat-send-btn");
-  const clearBtn = document.getElementById("clear-chat-btn");
-
-  // Histórico mantido no frontend
-  let history = [];
-
-  /* ---- Auto-resize do textarea ---- */
-  inputEl.addEventListener("input", () => {
-    inputEl.style.height = "auto";
-    inputEl.style.height = Math.min(inputEl.scrollHeight, 160) + "px";
-    sendBtn.disabled = inputEl.value.trim().length === 0;
-  });
-
-  /* ---- Enter para enviar ---- */
-  inputEl.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      if (!sendBtn.disabled) sendMessage();
-    }
-  });
-
-  sendBtn.addEventListener("click", sendMessage);
-
-  /* ---- Sugestões ---- */
-  document.querySelectorAll(".suggestion-btn").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      inputEl.value = btn.dataset.msg;
-      inputEl.dispatchEvent(new Event("input"));
-      inputEl.focus();
-    });
-  });
-
-  /* ---- Limpar conversa ---- */
-  clearBtn.addEventListener("click", () => {
-    history = [];
-    // Remove todas as mensagens exceto a de boas-vindas (1ª)
-    const msgs = messagesEl.querySelectorAll(".chat-msg");
-    msgs.forEach((m, i) => { if (i > 0) m.remove(); });
-  });
-
-  /* ---- Enviar mensagem ---- */
-  async function sendMessage() {
-    const text = inputEl.value.trim();
-    if (!text) return;
-
-    appendMessage("user", text);
-    history.push({ role: "user", content: text });
-
-    inputEl.value = "";
-    inputEl.style.height = "auto";
-    sendBtn.disabled = true;
-
-    const loadingEl = appendLoading();
-
-    try {
-      const res = await fetch("/chat/message", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text, history: history.slice(0, -1) }),
-      });
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.detail || `Erro ${res.status}`);
-      }
-
-      const data = await res.json();
-      loadingEl.remove();
-      appendMessage("assistant", data.reply);
-      history.push({ role: "assistant", content: data.reply });
-
-    } catch (err) {
-      loadingEl.remove();
-      appendError(err.message);
-    }
-  }
-
-  /* ---- Helpers de UI ---- */
-  function appendMessage(role, content) {
-    const isUser = role === "user";
-    const div = document.createElement("div");
-    div.className = `chat-msg chat-msg--${isUser ? "user" : "assistant"}`;
-
-    const avatar = document.createElement("div");
-    avatar.className = `chat-msg__avatar chat-msg__avatar--${isUser ? "user" : "assistant"}`;
-    avatar.textContent = isUser ? "V" : "G";
-
-    const bubble = document.createElement("div");
-    bubble.className = "chat-msg__bubble";
-
-    if (isUser) {
-      bubble.textContent = content;
-    } else {
-      // Renderiza Markdown na resposta do assistente
-      bubble.innerHTML = marked.parse(content);
-    }
-
-    if (isUser) {
-      div.appendChild(bubble);
-      div.appendChild(avatar);
-    } else {
-      div.appendChild(avatar);
-      div.appendChild(bubble);
-    }
-
-    messagesEl.appendChild(div);
-    scrollToBottom();
-    return div;
-  }
-
-  function appendLoading() {
-    const div = document.createElement("div");
-    div.className = "chat-msg chat-msg--assistant";
-    div.innerHTML = `
-      <div class="chat-msg__avatar chat-msg__avatar--assistant">G</div>
-      <div class="chat-msg__bubble chat-msg__bubble--loading">
-        <span class="typing-dot"></span>
-        <span class="typing-dot"></span>
-        <span class="typing-dot"></span>
-      </div>`;
-    messagesEl.appendChild(div);
-    scrollToBottom();
-    return div;
-  }
-
-  function appendError(msg) {
-    const div = document.createElement("div");
-    div.className = "chat-msg chat-msg--error";
-    div.innerHTML = `<div class="chat-msg__bubble chat-msg__bubble--error">Erro: ${msg}</div>`;
-    messagesEl.appendChild(div);
-    scrollToBottom();
-  }
-
-  function scrollToBottom() {
-    messagesEl.scrollTop = messagesEl.scrollHeight;
-  }
-})();
-</script>
+<script src="/static/js/chat.js"></script>
 {% endblock %}

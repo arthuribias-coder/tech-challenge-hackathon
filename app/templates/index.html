@@ -1,34 +1,40 @@
-{% extends "base.html" %} {% block title %}Nova Análise — STRIDE Threat Modeler{% endblock %} {% block content %}
+{% extends "base.html" %}
+{% block title %}Nova Análise — STRIDE Threat Modeler{% endblock %}
+{% block nav_analysis %}nav-active{% endblock %}
+
+{% block content %}
 <section class="hero">
   <h1 class="hero__title">Modelagem de Ameaças com IA</h1>
-  <p class="hero__subtitle">Faça upload do diagrama de arquitetura do seu sistema e receba um relatório completo de ameaças baseado na metodologia <strong>STRIDE</strong>.</p>
+  <p class="hero__subtitle">Envie o diagrama de arquitetura e receba um relatório completo de ameaças <strong>STRIDE</strong> em tempo real.</p>
 </section>
 
 <section class="stride-legend card">
   <h2 class="section-title">Metodologia STRIDE</h2>
   <div class="stride-grid">
-    <div class="stride-item stride-item--S"><strong>S</strong><br />Spoofing<br /><small>Falsificação de identidade</small></div>
-    <div class="stride-item stride-item--T"><strong>T</strong><br />Tampering<br /><small>Adulteração de dados</small></div>
-    <div class="stride-item stride-item--R"><strong>R</strong><br />Repudiation<br /><small>Repúdio de ações</small></div>
-    <div class="stride-item stride-item--I"><strong>I</strong><br />Information Disclosure<br /><small>Vazamento de informações</small></div>
-    <div class="stride-item stride-item--D"><strong>D</strong><br />Denial of Service<br /><small>Negação de serviço</small></div>
-    <div class="stride-item stride-item--E"><strong>E</strong><br />Elevation of Privilege<br /><small>Escalada de privilégios</small></div>
+    <div class="stride-item stride-item--S"><strong>S</strong><br/>Spoofing<br/><small>Falsificação de identidade</small></div>
+    <div class="stride-item stride-item--T"><strong>T</strong><br/>Tampering<br/><small>Adulteração de dados</small></div>
+    <div class="stride-item stride-item--R"><strong>R</strong><br/>Repudiation<br/><small>Repúdio de ações</small></div>
+    <div class="stride-item stride-item--I"><strong>I</strong><br/>Information Disclosure<br/><small>Vazamento de informações</small></div>
+    <div class="stride-item stride-item--D"><strong>D</strong><br/>Denial of Service<br/><small>Negação de serviço</small></div>
+    <div class="stride-item stride-item--E"><strong>E</strong><br/>Elevation of Privilege<br/><small>Escalada de privilégios</small></div>
   </div>
 </section>
 
 <section class="upload-section card">
   <h2 class="section-title">Enviar Diagrama</h2>
-  <form id="upload-form" method="post" action="/analysis/" enctype="multipart/form-data">
+  <form id="upload-form" enctype="multipart/form-data">
     <div class="form-group">
-      <label for="diagram" class="form-label">Imagem do Diagrama de Arquitetura</label>
+      <label class="form-label">Imagem do Diagrama de Arquitetura</label>
       <div class="dropzone" id="dropzone">
-        <input type="file" id="diagram" name="diagram" accept="image/jpeg,image/png,image/gif,image/webp" class="dropzone__input" required />
+        <input type="file" id="diagram" name="diagram"
+               accept="image/jpeg,image/png,image/gif,image/webp"
+               class="dropzone__input" />
         <div class="dropzone__placeholder" id="dropzone-placeholder">
           <span class="dropzone__icon">&#128444;</span>
-          <p>Arraste e solte a imagem aqui, ou <strong>clique para selecionar</strong></p>
-          <p class="dropzone__hint">JPEG, PNG, GIF, WebP &mdash; máximo 10MB</p>
+          <p>Arraste e solte ou <strong>clique para selecionar</strong></p>
+          <p class="dropzone__hint">JPEG, PNG, GIF, WebP &mdash; máx. 10MB</p>
         </div>
-        <div class="dropzone__preview" id="dropzone-preview" style="display: none">
+        <div class="dropzone__preview" id="dropzone-preview" style="display:none">
           <img id="preview-img" src="" alt="Preview" />
           <p id="preview-name"></p>
         </div>
@@ -37,13 +43,34 @@
 
     <div class="form-group">
       <label for="notes" class="form-label">Observações adicionais <span class="form-optional">(opcional)</span></label>
-      <textarea id="notes" name="notes" rows="3" placeholder="Ex: Este é um sistema de e-commerce com dados sensíveis de cartão de crédito..." class="form-textarea"></textarea>
+      <textarea id="notes" name="notes" rows="3"
+        placeholder="Ex: sistema de e-commerce com dados de cartão de crédito..."
+        class="form-textarea"></textarea>
     </div>
 
-    <button type="submit" class="btn btn--primary btn--large" id="submit-btn">
+    <button type="submit" class="btn btn--primary btn--large" id="submit-btn" disabled>
       <span id="btn-text">Analisar Diagrama</span>
-      <span id="btn-loading" style="display: none">Analisando... (aguarde)</span>
+      <span id="btn-loading" style="display:none">Analisando...</span>
     </button>
   </form>
 </section>
+
+<!-- Stepper de progresso (oculto até iniciar análise) -->
+<section class="stepper-section" style="display:none" id="stepper-container">
+  <h3 class="section-title">Progresso da Análise</h3>
+  <div id="analysis-stepper" class="stepper"></div>
+</section>
+
+<!-- Relatório inline (preenchido pelo JS via SSE) -->
+<section id="report-section"></section>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/analysis.js"></script>
+<script>
+  // Mostra o stepper container quando a análise começa
+  document.getElementById("upload-form").addEventListener("submit", () => {
+    document.getElementById("stepper-container").style.display = "block";
+  });
+</script>
 {% endblock %}

@@ -1,6 +1,10 @@
+from __future__ import annotations
+
 from enum import Enum
+from typing import Optional
 
 from pydantic import BaseModel, Field
+from typing_extensions import TypedDict
 
 
 class StrideCategory(str, Enum):
@@ -40,3 +44,33 @@ class AnalysisRequest(BaseModel):
 class AnalysisResponse(BaseModel):
     report: ThreatReport
     image_filename: str
+
+
+# ---------------------------------------------------------------------------
+# LangGraph state — TypedDict com todos os campos do pipeline de análise
+# ---------------------------------------------------------------------------
+
+class AnalysisState(TypedDict):
+    """Estado compartilhado entre os nós do grafo de análise de ameaças."""
+
+    image_path: str          # Caminho absoluto da imagem
+    notes: str               # Notas adicionais do usuário
+    mime_type: str           # MIME type da imagem
+
+    # Saída do nó de detecção visual (YOLO + OpenCV + OCR)
+    detections: list[dict]
+    has_yolo_detections: bool
+
+    # Saída do nó de mapeamento de componentes
+    components: list[dict]
+
+    # Saída do nó de análise STRIDE
+    threats: list[dict]
+    summary: str
+
+    # Relatório final compilado
+    report: dict
+
+    # Controle de fluxo e progresso
+    step: str
+    error: Optional[str]

@@ -44,3 +44,8 @@ htmlcov/
 # OS
 .DS_Store
 Thumbs.db
+# ML Models
+*.pt
+*.pth
+*.onnx
+*.weights
