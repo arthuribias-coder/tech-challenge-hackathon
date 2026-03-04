@@ -1,135 +1,118 @@
-{% extends "base.html" %}
-
-{% block title %}Relatório STRIDE — {{ original_filename }}{% endblock %}
-
-{% block content %}
+{% extends "base.html" %} {% block title %}Relatório STRIDE — {{ original_filename }}{% endblock %} {% block content %}
 <div class="report-header">
-    <h1 class="report-header__title">Relatório de Modelagem de Ameaças</h1>
-    <p class="report-header__meta">
-        Arquivo analisado: <strong>{{ original_filename }}</strong>
-        &mdash;
-        <strong>{{ report.threats | length }}</strong> ameaça(s) identificada(s)
-        em <strong>{{ report.components | length }}</strong> componente(s)
-    </p>
-    <a href="/analysis/" class="btn btn--secondary">&#8592; Nova Análise</a>
+  <h1 class="report-header__title">Relatório de Modelagem de Ameaças</h1>
+  <p class="report-header__meta">
+    Arquivo analisado: <strong>{{ original_filename }}</strong>
+    &mdash;
+    <strong>{{ report.threats | length }}</strong> ameaça(s) identificada(s) em <strong>{{ report.components | length }}</strong> componente(s)
+  </p>
+  <a href="/analysis/" class="btn btn--secondary">&#8592; Nova Análise</a>
 </div>
 
 <!-- Diagrama analisado -->
 <div class="card">
-    <h2 class="section-title">Diagrama Analisado</h2>
-    <div class="diagram-preview">
-        <img src="/uploads/{{ image_filename }}" alt="Diagrama de arquitetura analisado" />
-    </div>
+  <h2 class="section-title">Diagrama Analisado</h2>
+  <div class="diagram-preview">
+    <img src="/uploads/{{ image_filename }}" alt="Diagrama de arquitetura analisado" />
+  </div>
 </div>
 
 <!-- Resumo executivo -->
 {% if report.summary %}
 <div class="card">
-    <h2 class="section-title">Resumo Executivo</h2>
-    <div class="summary-text">{{ report.summary }}</div>
+  <h2 class="section-title">Resumo Executivo</h2>
+  <div class="summary-text">{{ report.summary }}</div>
 </div>
 {% endif %}
 
 <!-- Estatísticas -->
 <div class="stats-row">
-    {% set high = threats | selectattr("severity", "equalto", "Alta") | list | length %}
-    {% set medium = threats | selectattr("severity", "equalto", "Média") | list | length %}
-    {% set low = threats | selectattr("severity", "equalto", "Baixa") | list | length %}
-    <div class="stat-card stat-card--high">
-        <span class="stat-card__number">{{ high }}</span>
-        <span class="stat-card__label">Severidade Alta</span>
-    </div>
-    <div class="stat-card stat-card--medium">
-        <span class="stat-card__number">{{ medium }}</span>
-        <span class="stat-card__label">Severidade Média</span>
-    </div>
-    <div class="stat-card stat-card--low">
-        <span class="stat-card__number">{{ low }}</span>
-        <span class="stat-card__label">Severidade Baixa</span>
-    </div>
-    <div class="stat-card stat-card--total">
-        <span class="stat-card__number">{{ report.components | length }}</span>
-        <span class="stat-card__label">Componentes</span>
-    </div>
+  {% set high = threats | selectattr("severity", "equalto", "Alta") | list | length %} {% set medium = threats | selectattr("severity", "equalto", "Média") | list | length %} {% set low = threats | selectattr("severity", "equalto", "Baixa")
+  | list | length %}
+  <div class="stat-card stat-card--high">
+    <span class="stat-card__number">{{ high }}</span>
+    <span class="stat-card__label">Severidade Alta</span>
+  </div>
+  <div class="stat-card stat-card--medium">
+    <span class="stat-card__number">{{ medium }}</span>
+    <span class="stat-card__label">Severidade Média</span>
+  </div>
+  <div class="stat-card stat-card--low">
+    <span class="stat-card__number">{{ low }}</span>
+    <span class="stat-card__label">Severidade Baixa</span>
+  </div>
+  <div class="stat-card stat-card--total">
+    <span class="stat-card__number">{{ report.components | length }}</span>
+    <span class="stat-card__label">Componentes</span>
+  </div>
 </div>
 
 <!-- Componentes identificados -->
 <div class="card">
-    <h2 class="section-title">Componentes Identificados</h2>
-    <div class="components-grid">
-        {% for component in report.components %}
-        <div class="component-card">
-            <div class="component-card__type">{{ component.component_type }}</div>
-            <div class="component-card__name">{{ component.name }}</div>
-            <div class="component-card__desc">{{ component.description }}</div>
-        </div>
-        {% else %}
-        <p class="empty-state">Nenhum componente identificado.</p>
-        {% endfor %}
+  <h2 class="section-title">Componentes Identificados</h2>
+  <div class="components-grid">
+    {% for component in report.components %}
+    <div class="component-card">
+      <div class="component-card__type">{{ component.component_type }}</div>
+      <div class="component-card__name">{{ component.name }}</div>
+      <div class="component-card__desc">{{ component.description }}</div>
     </div>
+    {% else %}
+    <p class="empty-state">Nenhum componente identificado.</p>
+    {% endfor %}
+  </div>
 </div>
 
 <!-- Ameaças STRIDE -->
 <div class="card">
-    <h2 class="section-title">Ameaças Identificadas</h2>
+  <h2 class="section-title">Ameaças Identificadas</h2>
 
-    <!-- Filtro por categoria -->
-    <div class="filter-bar">
-        <button class="filter-btn filter-btn--active" data-filter="all">Todas</button>
-        <button class="filter-btn stride-btn--S" data-filter="Spoofing">Spoofing</button>
-        <button class="filter-btn stride-btn--T" data-filter="Tampering">Tampering</button>
-        <button class="filter-btn stride-btn--R" data-filter="Repudiation">Repudiation</button>
-        <button class="filter-btn stride-btn--I" data-filter="Information Disclosure">Info. Disclosure</button>
-        <button class="filter-btn stride-btn--D" data-filter="Denial of Service">DoS</button>
-        <button class="filter-btn stride-btn--E" data-filter="Elevation of Privilege">Elev. Privilege</button>
-    </div>
+  <!-- Filtro por categoria -->
+  <div class="filter-bar">
+    <button class="filter-btn filter-btn--active" data-filter="all">Todas</button>
+    <button class="filter-btn stride-btn--S" data-filter="Spoofing">Spoofing</button>
+    <button class="filter-btn stride-btn--T" data-filter="Tampering">Tampering</button>
+    <button class="filter-btn stride-btn--R" data-filter="Repudiation">Repudiation</button>
+    <button class="filter-btn stride-btn--I" data-filter="Information Disclosure">Info. Disclosure</button>
+    <button class="filter-btn stride-btn--D" data-filter="Denial of Service">DoS</button>
+    <button class="filter-btn stride-btn--E" data-filter="Elevation of Privilege">Elev. Privilege</button>
+  </div>
 
-    <div class="threats-list" id="threats-list">
-        {% for threat in threats %}
-        {% set cat_key = {
-            "Spoofing": "S",
-            "Tampering": "T",
-            "Repudiation": "R",
-            "Information Disclosure": "I",
-            "Denial of Service": "D",
-            "Elevation of Privilege": "E"
-        }[threat.stride_category] %}
-        <div class="threat-card threat-card--{{ threat.severity | lower | replace(' ', '-') }}"
-             data-category="{{ threat.stride_category }}">
-            <div class="threat-card__header">
-                <span class="stride-badge stride-badge--{{ cat_key }}">{{ cat_key }} — {{ threat.stride_category }}</span>
-                <span class="severity-badge severity-badge--{{ threat.severity | lower | replace('é', 'e') }}">{{ threat.severity }}</span>
-            </div>
-            <h3 class="threat-card__title">{{ threat.title }}</h3>
-            <p class="threat-card__component">Componente: <strong>{{ threat.affected_component }}</strong></p>
-            <p class="threat-card__desc">{{ threat.description }}</p>
-            <div class="threat-card__countermeasures">
-                <strong>Contramedidas:</strong>
-                <ul>
-                    {% for cm in threat.countermeasures %}
-                    <li>{{ cm }}</li>
-                    {% endfor %}
-                </ul>
-            </div>
-        </div>
-        {% else %}
-        <p class="empty-state">Nenhuma ameaça identificada.</p>
-        {% endfor %}
+  <div class="threats-list" id="threats-list">
+    {% for threat in threats %} {% set cat_key = { "Spoofing": "S", "Tampering": "T", "Repudiation": "R", "Information Disclosure": "I", "Denial of Service": "D", "Elevation of Privilege": "E" }[threat.stride_category] %}
+    <div class="threat-card threat-card--{{ threat.severity | lower | replace(' ', '-') }}" data-category="{{ threat.stride_category }}">
+      <div class="threat-card__header">
+        <span class="stride-badge stride-badge--{{ cat_key }}">{{ cat_key }} — {{ threat.stride_category }}</span>
+        <span class="severity-badge severity-badge--{{ threat.severity | lower | replace('é', 'e') }}">{{ threat.severity }}</span>
+      </div>
+      <h3 class="threat-card__title">{{ threat.title }}</h3>
+      <p class="threat-card__component">Componente: <strong>{{ threat.affected_component }}</strong></p>
+      <p class="threat-card__desc">{{ threat.description }}</p>
+      <div class="threat-card__countermeasures">
+        <strong>Contramedidas:</strong>
+        <ul>
+          {% for cm in threat.countermeasures %}
+          <li>{{ cm }}</li>
+          {% endfor %}
+        </ul>
+      </div>
     </div>
+    {% else %}
+    <p class="empty-state">Nenhuma ameaça identificada.</p>
+    {% endfor %}
+  </div>
 </div>
-{% endblock %}
-
-{% block scripts %}
+{% endblock %} {% block scripts %}
 <script>
-document.querySelectorAll('.filter-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('filter-btn--active'));
-        btn.classList.add('filter-btn--active');
-        const filter = btn.dataset.filter;
-        document.querySelectorAll('.threat-card').forEach(card => {
-            card.style.display = (filter === 'all' || card.dataset.category === filter) ? '' : 'none';
-        });
+  document.querySelectorAll(".filter-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".filter-btn").forEach((b) => b.classList.remove("filter-btn--active"));
+      btn.classList.add("filter-btn--active");
+      const filter = btn.dataset.filter;
+      document.querySelectorAll(".threat-card").forEach((card) => {
+        card.style.display = filter === "all" || card.dataset.category === filter ? "" : "none";
+      });
     });
-});
+  });
 </script>
 {% endblock %}

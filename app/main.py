@@ -14,7 +14,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from app.config import settings
-from app.routers import analysis
+from app.routers import analysis, chat
 
 logging.basicConfig(
     level=logging.DEBUG if settings.debug else logging.INFO,
@@ -46,6 +46,7 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 app.mount("/uploads", StaticFiles(directory=settings.upload_dir), name="uploads")
 
 app.include_router(analysis.router)
+app.include_router(chat.router)
 
 templates = Jinja2Templates(directory="app/templates")
 
