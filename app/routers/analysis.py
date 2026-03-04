@@ -6,6 +6,7 @@ import aiofiles
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile, status
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
+from google.genai.errors import ClientError, ServerError
 
 from app.config import settings
 from app.services.report_generator import generate_threat_report
@@ -62,6 +63,21 @@ async def run_analysis(
         report = await generate_threat_report(file_path)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
+    except ClientError as exc:
+        http_status = exc.status_code or 400
+        if http_status == 429:
+            detail = "Cota da API Gemini esgotada ou limite de requisições atingido. Tente novamente em alguns instantes."
+        elif http_status in (401, 403):
+            detail = "Chave de API Gemini inválida ou sem permissão. Verifique a variável GEMINI_API_KEY."
+        else:
+            detail = f"Erro da API Gemini: {exc}"
+        raise HTTPException(status_code=http_status, detail=detail) from exc
+    except ServerError as exc:
+        logger.error("Erro no servidor Gemini: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="O servidor da API Gemini retornou um erro. Tente novamente.",
+        ) from exc
     except Exception as exc:
         logger.exception("Erro durante a análise: %s", exc)
         raise HTTPException(
