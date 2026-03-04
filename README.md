@@ -4,7 +4,7 @@ MVP de Modelagem de Ameaças com Inteligência Artificial — FIAP Tech Challeng
 
 ## Visão Geral
 
-Esta aplicação web analisa automaticamente **diagramas de arquitetura de software** (imagens) e gera um **Relatório de Modelagem de Ameaças** seguindo a metodologia **STRIDE**, utilizando a API de Visão Computacional da OpenAI (GPT-4o).
+Esta aplicação web analisa automaticamente **diagramas de arquitetura de software** (imagens) e gera um **Relatório de Modelagem de Ameaças** seguindo a metodologia **STRIDE**, utilizando o Google Gemini (gemini-2.0-flash) com suporte a visão computacional.
 
 ### Metodologia STRIDE
 
@@ -26,11 +26,11 @@ Usuário
   │
   ▼
 [FastAPI] ─► [Diagram Analyzer]
-               │  GPT-4o Vision
+               │  Gemini Vision (gemini-2.0-flash)
                │  Identifica componentes: servidores, DBs, APIs, usuários...
                ▼
          [STRIDE Analyzer]
-               │  GPT-4o
+               │  Gemini (gemini-2.0-flash)
                │  Aplica STRIDE para cada componente
                │  Gera ameaças + contramedidas + severidade
                ▼
@@ -46,7 +46,7 @@ Usuário
 ## Pré-requisitos
 
 - Python 3.11+
-- Chave de API da OpenAI com acesso ao modelo `gpt-4o`
+- Chave de API do Google Gemini (obtenha em [aistudio.google.com](https://aistudio.google.com/apikey))
 
 ## Instalação
 
@@ -65,7 +65,7 @@ pip install -r requirements.txt
 
 # Configure as variáveis de ambiente
 cp .env.example .env
-# Edite o .env e adicione sua OPENAI_API_KEY
+# Edite o .env e adicione sua GEMINI_API_KEY
 ```
 
 ## Configuração
@@ -73,10 +73,10 @@ cp .env.example .env
 Edite o arquivo `.env`:
 
 ```env
-OPENAI_API_KEY=sk-...        # Obrigatório
-OPENAI_MODEL=gpt-4o          # Modelo (padrão: gpt-4o)
-DEBUG=false                  # Modo debug
-MAX_UPLOAD_SIZE_MB=10        # Tamanho máximo do upload
+GEMINI_API_KEY=AIza...         # Obrigatório
+GEMINI_MODEL=gemini-2.0-flash  # Modelo (padrão: gemini-2.0-flash)
+DEBUG=false                    # Modo debug
+MAX_UPLOAD_SIZE_MB=10          # Tamanho máximo do upload
 ```
 
 ## Executando a Aplicação
@@ -150,7 +150,7 @@ pytest
 ## Tecnologias Utilizadas
 
 - **FastAPI** — Framework web assíncrono
-- **OpenAI GPT-4o Vision** — Análise de imagens de diagramas
+- **Google Gemini (gemini-2.0-flash)** — Análise de imagens de diagramas e geração de ameaças STRIDE
 - **Pydantic v2** — Validação de dados e schemas
 - **Jinja2** — Templates HTML
 - **pytest + pytest-asyncio** — Testes automatizados

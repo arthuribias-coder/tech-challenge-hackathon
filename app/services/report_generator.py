@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 async def generate_threat_report(image_path: Path) -> ThreatReport:
     """
     Orquestra o fluxo completo:
-    1. Extrai componentes do diagrama via visão computacional (OpenAI Vision)
+    1. Extrai componentes do diagrama via visão computacional (Gemini Vision)
     2. Aplica a metodologia STRIDE sobre os componentes identificados
     3. Retorna um ThreatReport completo
     """

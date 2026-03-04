@@ -10,9 +10,9 @@ from app.services.stride_analyzer import generate_stride_threats
 
 
 def _make_mock_response(threats_data: list[dict], summary: str) -> MagicMock:
-    """Constrói um mock que simula a resposta da OpenAI."""
+    """Constrói um mock que simula a resposta do Google Gemini."""
     mock_response = MagicMock()
-    mock_response.choices[0].message.content = json.dumps(
+    mock_response.text = json.dumps(
         {"threats": threats_data, "summary": summary}
     )
     return mock_response
@@ -59,14 +59,14 @@ async def test_generate_stride_threats_happy_path(
 
     mock_response = _make_mock_response(threats_data, "Sistema apresenta riscos críticos.")
 
-    with patch("app.services.stride_analyzer.AsyncOpenAI") as mock_openai_class:
+    with patch("app.services.stride_analyzer.genai") as mock_genai:
         mock_client = AsyncMock()
-        mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
-        mock_openai_class.return_value = mock_client
+        mock_client.aio.models.generate_content = AsyncMock(return_value=mock_response)
+        mock_genai.Client.return_value = mock_client
 
         with patch("app.services.stride_analyzer.settings") as mock_settings:
-            mock_settings.openai_api_key = "sk-test"
-            mock_settings.openai_model = "gpt-4o"
+            mock_settings.gemini_api_key = "AIza-test"
+            mock_settings.gemini_model = "gemini-2.0-flash"
 
             threats, summary = await generate_stride_threats(sample_components)
 
@@ -101,14 +101,14 @@ async def test_generate_stride_threats_ignores_invalid_category(
 
     mock_response = _make_mock_response(threats_data, "Sumário de teste.")
 
-    with patch("app.services.stride_analyzer.AsyncOpenAI") as mock_openai_class:
+    with patch("app.services.stride_analyzer.genai") as mock_genai:
         mock_client = AsyncMock()
-        mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
-        mock_openai_class.return_value = mock_client
+        mock_client.aio.models.generate_content = AsyncMock(return_value=mock_response)
+        mock_genai.Client.return_value = mock_client
 
         with patch("app.services.stride_analyzer.settings") as mock_settings:
-            mock_settings.openai_api_key = "sk-test"
-            mock_settings.openai_model = "gpt-4o"
+            mock_settings.gemini_api_key = "AIza-test"
+            mock_settings.gemini_model = "gemini-2.0-flash"
 
             threats, _ = await generate_stride_threats(sample_components)
 
@@ -121,7 +121,7 @@ async def test_generate_stride_threats_raises_when_no_api_key(
     sample_components: list[ArchitectureComponent],
 ):
     with patch("app.services.stride_analyzer.settings") as mock_settings:
-        mock_settings.openai_api_key = ""
+        mock_settings.gemini_api_key = ""
 
-        with pytest.raises(ValueError, match="OPENAI_API_KEY"):
+        with pytest.raises(ValueError, match="GEMINI_API_KEY"):
             await generate_stride_threats(sample_components)

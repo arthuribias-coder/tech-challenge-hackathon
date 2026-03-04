@@ -6,7 +6,8 @@ Gera ameaças para cada componente identificado no diagrama de arquitetura.
 import json
 import logging
 
-from openai import AsyncOpenAI
+from google import genai
+from google.genai import types
 
 from app.config import settings
 from app.models.schemas import ArchitectureComponent, Threat
@@ -68,10 +69,10 @@ async def generate_stride_threats(
     Gera ameaças STRIDE para uma lista de componentes de arquitetura.
     Retorna (lista de Threat, resumo executivo).
     """
-    if not settings.openai_api_key:
-        raise ValueError("OPENAI_API_KEY não configurada. Defina a variável de ambiente.")
+    if not settings.gemini_api_key:
+        raise ValueError("GEMINI_API_KEY não configurada. Defina a variável de ambiente.")
 
-    client = AsyncOpenAI(api_key=settings.openai_api_key)
+    client = genai.Client(api_key=settings.gemini_api_key)
 
     components_json = json.dumps(
         [c.model_dump() for c in components],
@@ -83,14 +84,17 @@ async def generate_stride_threats(
 
     logger.info("Gerando ameaças STRIDE para %d componentes", len(components))
 
-    response = await client.chat.completions.create(
-        model=settings.openai_model,
-        messages=[{"role": "user", "content": prompt}],
-        max_tokens=4000,
-        response_format={"type": "json_object"},
+    response = await client.aio.models.generate_content(
+        model=settings.gemini_model,
+        contents=[prompt],
+        config=types.GenerateContentConfig(
+            response_mime_type="application/json",
+            temperature=0.3,
+            max_output_tokens=4000,
+        ),
     )
 
-    raw = response.choices[0].message.content or "{}"
+    raw = response.text or "{}"
     data = json.loads(raw)
 
     threats_data = data.get("threats", [])

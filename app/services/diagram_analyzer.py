@@ -1,14 +1,14 @@
 """
-Serviço de análise de diagramas de arquitetura usando OpenAI Vision.
+Serviço de análise de diagramas de arquitetura usando Google Gemini Vision.
 Responsável por identificar os componentes da arquitetura a partir de uma imagem.
 """
 
-import base64
 import json
 import logging
 from pathlib import Path
 
-from openai import AsyncOpenAI
+from google import genai
+from google.genai import types
 
 from app.config import settings
 from app.models.schemas import ArchitectureComponent
@@ -36,60 +36,45 @@ Retorne APENAS o JSON, sem texto adicional.
 """
 
 
-def _encode_image_to_base64(image_path: Path) -> str:
-    with open(image_path, "rb") as f:
-        return base64.standard_b64encode(f.read()).decode("utf-8")
-
-
-def _get_image_media_type(image_path: Path) -> str:
+def _get_image_mime_type(image_path: Path) -> str:
     suffix = image_path.suffix.lower()
-    media_types = {
+    mime_types = {
         ".jpg": "image/jpeg",
         ".jpeg": "image/jpeg",
         ".png": "image/png",
         ".gif": "image/gif",
         ".webp": "image/webp",
     }
-    return media_types.get(suffix, "image/png")
+    return mime_types.get(suffix, "image/png")
 
 
 async def extract_components(image_path: Path) -> list[ArchitectureComponent]:
     """
-    Usa a OpenAI Vision API para identificar os componentes de um diagrama de arquitetura.
+    Usa o Google Gemini Vision para identificar componentes de um diagrama de arquitetura.
     Retorna uma lista de ArchitectureComponent.
     """
-    if not settings.openai_api_key:
-        raise ValueError("OPENAI_API_KEY não configurada. Defina a variável de ambiente.")
+    if not settings.gemini_api_key:
+        raise ValueError("GEMINI_API_KEY não configurada. Defina a variável de ambiente.")
 
-    client = AsyncOpenAI(api_key=settings.openai_api_key)
+    client = genai.Client(api_key=settings.gemini_api_key)
 
-    image_data = _encode_image_to_base64(image_path)
-    media_type = _get_image_media_type(image_path)
+    image_bytes = image_path.read_bytes()
+    mime_type = _get_image_mime_type(image_path)
 
     logger.info("Enviando imagem para análise de componentes: %s", image_path.name)
 
-    response = await client.chat.completions.create(
-        model=settings.openai_model,
-        messages=[
-            {
-                "role": "user",
-                "content": [
-                    {"type": "text", "text": _COMPONENT_EXTRACTION_PROMPT},
-                    {
-                        "type": "image_url",
-                        "image_url": {
-                            "url": f"data:{media_type};base64,{image_data}",
-                            "detail": "high",
-                        },
-                    },
-                ],
-            }
-        ],
-        max_tokens=2000,
-        response_format={"type": "json_object"},
+    image_part = types.Part.from_bytes(data=image_bytes, mime_type=mime_type)
+
+    response = await client.aio.models.generate_content(
+        model=settings.gemini_model,
+        contents=[_COMPONENT_EXTRACTION_PROMPT, image_part],
+        config=types.GenerateContentConfig(
+            response_mime_type="application/json",
+            temperature=0.2,
+        ),
     )
 
-    raw = response.choices[0].message.content or "{}"
+    raw = response.text or "{}"
     data = json.loads(raw)
 
     components = [ArchitectureComponent(**item) for item in data.get("components", [])]
