@@ -190,6 +190,7 @@ pytest
 - [ ] Vídeo de até 15 minutos explicando a solução
 
 ## TLangGraph** — Orquestração de workflows com LLM (pipeline de análise)
+
 - **LangChain** — Structured output e ReAct agent
 - **Google Gemini (gemini-2.0-flash)** — LLM para análise de diagramas e STRIDE
 - **Pydantic v2** — Validação de dados e schemas
