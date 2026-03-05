@@ -1,6 +1,11 @@
 """
 Serviço de chat com Google Gemini.
 Mantém histórico de conversa e atua como assistente especialista em STRIDE e segurança de sistemas.
+
+.. deprecated::
+    Lógica legada da versão pré-LangGraph. A lógica ativa está em
+    ``app/graphs/chat_graph.py`` (ReAct agent com MemorySaver).
+    Este módulo será removido em uma versão futura.
 """
 
 import logging

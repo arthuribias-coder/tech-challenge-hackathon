@@ -5,24 +5,39 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{% block title %}STRIDE Threat Modeler{% endblock %}</title>
     <link rel="stylesheet" href="/static/css/style.css" />
+    <!-- highlight.js para blocos de código no chat -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css" />
     {% block head %}{% endblock %}
   </head>
   <body>
     <header class="navbar">
-      <div class="container navbar__inner">
+      <div class="navbar__inner">
         <a href="/" class="navbar__brand">
-          <span class="navbar__icon">&#128737;</span>
-          <span>STRIDE Threat Modeler</span>
+          <svg class="navbar__brand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+          </svg>
+          <span class="navbar__brand-text">STRIDE <span class="navbar__brand-sub">Threat Modeler</span></span>
         </a>
-        <nav class="navbar__links">
-          <a href="/analysis/">Nova Análise</a>
-          <a href="/chat/">Chat STRIDE</a>
-          <a href="/health" target="_blank">Status</a>
+        <nav class="navbar__links" id="navbar-links" aria-label="Navegação principal">
+          <a href="/analysis/" class="navbar__link {% block nav_analysis %}{% endblock %}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+            </svg>
+            <span>Nova Análise</span>
+          </a>
+          <a href="/health" target="_blank" rel="noopener" class="navbar__link navbar__link--ghost">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+            </svg>
+            <span>Status</span>
+          </a>
         </nav>
+        <button class="navbar__hamburger" id="navbar-hamburger" aria-label="Menu" aria-expanded="false" aria-controls="navbar-links"><span></span><span></span><span></span></button>
       </div>
     </header>
+    <div class="navbar__overlay" id="navbar-overlay" aria-hidden="true"></div>
 
-    <main class="container main-content">{% block content %}{% endblock %}</main>
+    <main class="{% block main_class %}container main-content{% endblock %}">{% block content %}{% endblock %}</main>
 
     <footer class="footer">
       <div class="container">
@@ -30,7 +45,39 @@
       </div>
     </footer>
 
-    <script src="/static/js/app.js"></script>
+    <!-- CDN libs -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script>
+      (function () {
+        const btn = document.getElementById("navbar-hamburger");
+        const nav = document.getElementById("navbar-links");
+        const overlay = document.getElementById("navbar-overlay");
+        if (!btn || !nav) return;
+        function openMenu() {
+          nav.classList.add("navbar__links--open");
+          btn.classList.add("navbar__hamburger--open");
+          btn.setAttribute("aria-expanded", "true");
+          overlay.classList.add("navbar__overlay--visible");
+          document.body.style.overflow = "hidden";
+        }
+        function closeMenu() {
+          nav.classList.remove("navbar__links--open");
+          btn.classList.remove("navbar__hamburger--open");
+          btn.setAttribute("aria-expanded", "false");
+          overlay.classList.remove("navbar__overlay--visible");
+          document.body.style.overflow = "";
+        }
+        btn.addEventListener("click", function () {
+          btn.classList.contains("navbar__hamburger--open") ? closeMenu() : openMenu();
+        });
+        overlay.addEventListener("click", closeMenu);
+        nav.querySelectorAll(".navbar__link").forEach(function (a) {
+          a.addEventListener("click", closeMenu);
+        });
+      })();
+    </script>
     {% block scripts %}{% endblock %}
   </body>
 </html>

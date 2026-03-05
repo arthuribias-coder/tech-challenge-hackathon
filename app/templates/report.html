@@ -27,8 +27,12 @@
 
 <!-- Estatísticas -->
 <div class="stats-row">
-  {% set high = threats | selectattr("severity", "equalto", "Alta") | list | length %} {% set medium = threats | selectattr("severity", "equalto", "Média") | list | length %} {% set low = threats | selectattr("severity", "equalto", "Baixa")
-  | list | length %}
+  {% set critical = threats | selectattr("severity", "equalto", "Crítica") | list | length %} {% set high = threats | selectattr("severity", "equalto", "Alta") | list | length %} {% set medium = threats | selectattr("severity", "equalto",
+  "Média") | list | length %} {% set low = threats | selectattr("severity", "equalto", "Baixa") | list | length %}
+  <div class="stat-card stat-card--critical">
+    <span class="stat-card__number">{{ critical }}</span>
+    <span class="stat-card__label">Severidade Crítica</span>
+  </div>
   <div class="stat-card stat-card--high">
     <span class="stat-card__number">{{ high }}</span>
     <span class="stat-card__label">Severidade Alta</span>
@@ -47,19 +51,56 @@
   </div>
 </div>
 
-<!-- Componentes identificados -->
-<div class="card">
-  <h2 class="section-title">Componentes Identificados</h2>
-  <div class="components-grid">
-    {% for component in report.components %}
-    <div class="component-card">
-      <div class="component-card__type">{{ component.component_type }}</div>
-      <div class="component-card__name">{{ component.name }}</div>
-      <div class="component-card__desc">{{ component.description }}</div>
+<!-- Abas: Gráficos + Componentes -->
+<div class="card tabs-card">
+  <div class="tabs" role="tablist" aria-label="Visualizações">
+    <button class="tab tab--active" role="tab" aria-selected="true" aria-controls="tab-panel-charts" id="tab-charts">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+      </svg>
+      Distribuição STRIDE
+    </button>
+    <button class="tab" role="tab" aria-selected="false" aria-controls="tab-panel-components" id="tab-components">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <rect x="3" y="3" width="7" height="7" />
+        <rect x="14" y="3" width="7" height="7" />
+        <rect x="14" y="14" width="7" height="7" />
+        <rect x="3" y="14" width="7" height="7" />
+      </svg>
+      Componentes
+      <span class="tab__badge">{{ report.components | length }}</span>
+    </button>
+  </div>
+
+  <div class="tab-panel" id="tab-panel-charts" role="tabpanel" aria-labelledby="tab-charts">
+    <div class="charts-grid">
+      <div class="chart-item">
+        <h3 class="section-title">Distribuição STRIDE</h3>
+        <div class="chart-canvas-wrapper">
+          <canvas id="stride-chart"></canvas>
+        </div>
+      </div>
+      <div class="chart-item">
+        <h3 class="section-title">Por Severidade</h3>
+        <div class="chart-canvas-wrapper">
+          <canvas id="severity-chart"></canvas>
+        </div>
+      </div>
     </div>
-    {% else %}
-    <p class="empty-state">Nenhum componente identificado.</p>
-    {% endfor %}
+  </div>
+
+  <div class="tab-panel tab-panel--hidden" id="tab-panel-components" role="tabpanel" aria-labelledby="tab-components">
+    <div class="components-grid">
+      {% for component in report.components %}
+      <div class="component-card">
+        <div class="component-card__type">{{ component.component_type }}</div>
+        <div class="component-card__name">{{ component.name }}</div>
+        <div class="component-card__desc">{{ component.description }}</div>
+      </div>
+      {% else %}
+      <p class="empty-state">Nenhum componente identificado.</p>
+      {% endfor %}
+    </div>
   </div>
 </div>
 
@@ -104,6 +145,27 @@
 </div>
 {% endblock %} {% block scripts %}
 <script>
+  // --- Abas ---
+  (function () {
+    const tabs = document.querySelectorAll(".tab");
+    const panels = document.querySelectorAll(".tab-panel");
+    tabs.forEach(function (tab) {
+      tab.addEventListener("click", function () {
+        tabs.forEach(function (t) {
+          t.classList.remove("tab--active");
+          t.setAttribute("aria-selected", "false");
+        });
+        panels.forEach(function (p) {
+          p.classList.add("tab-panel--hidden");
+        });
+        tab.classList.add("tab--active");
+        tab.setAttribute("aria-selected", "true");
+        document.getElementById(tab.getAttribute("aria-controls")).classList.remove("tab-panel--hidden");
+      });
+    });
+  })();
+
+  // --- Filtro por categoria ---
   document.querySelectorAll(".filter-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
       document.querySelectorAll(".filter-btn").forEach((b) => b.classList.remove("filter-btn--active"));
@@ -114,5 +176,51 @@
       });
     });
   });
+
+  // --- Gráficos Chart.js ---
+  (function () {
+    const threats = document.querySelectorAll(".threat-card");
+    const strideCategories = ["Spoofing", "Tampering", "Repudiation", "Information Disclosure", "Denial of Service", "Elevation of Privilege"];
+    const strideCounts = strideCategories.map((cat) => [...threats].filter((t) => t.dataset.category === cat).length);
+    const strideColors = ["#e74c3c", "#e67e22", "#f39c12", "#3498db", "#9b59b6", "#2ecc71"];
+
+    const chartDefaults = {
+      type: "doughnut",
+      options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        plugins: { legend: { position: "bottom", labels: { color: "#8892a4", font: { size: 11 }, padding: 12 } } },
+        cutout: "60%",
+      },
+    };
+
+    const ctxStride = document.getElementById("stride-chart");
+    if (ctxStride) {
+      new Chart(
+        ctxStride,
+        Object.assign({}, chartDefaults, {
+          data: { labels: strideCategories, datasets: [{ data: strideCounts, backgroundColor: strideColors, borderWidth: 2, borderColor: "#1a1d27" }] },
+        }),
+      );
+    }
+
+    const criticalCount = parseInt(document.querySelector(".stat-card--critical .stat-card__number")?.textContent) || 0;
+    const highCount = parseInt(document.querySelector(".stat-card--high .stat-card__number")?.textContent) || 0;
+    const medCount = parseInt(document.querySelector(".stat-card--medium .stat-card__number")?.textContent) || 0;
+    const lowCount = parseInt(document.querySelector(".stat-card--low .stat-card__number")?.textContent) || 0;
+
+    const ctxSev = document.getElementById("severity-chart");
+    if (ctxSev) {
+      new Chart(
+        ctxSev,
+        Object.assign({}, chartDefaults, {
+          data: {
+            labels: ["Crítica", "Alta", "Média", "Baixa"],
+            datasets: [{ data: [criticalCount, highCount, medCount, lowCount], backgroundColor: ["#a855f7", "#e74c3c", "#f39c12", "#2ecc71"], borderWidth: 2, borderColor: "#1a1d27" }],
+          },
+        }),
+      );
+    }
+  })();
 </script>
 {% endblock %}

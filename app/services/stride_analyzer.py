@@ -1,6 +1,11 @@
 """
 Serviço de análise de ameaças usando a metodologia STRIDE.
 Gera ameaças para cada componente identificado no diagrama de arquitetura.
+
+.. deprecated::
+    Lógica legada da versão pré-LangGraph. A lógica ativa está em
+    ``app/nodes/stride_node.py`` (analyze_stride_node).
+    Este módulo será removido em uma versão futura.
 """
 
 import json
@@ -10,7 +15,7 @@ from google import genai
 from google.genai import types
 
 from app.config import settings
-from app.models.schemas import ArchitectureComponent, Threat
+from app.models.schemas import ArchitectureComponent, StrideCategory, Threat
 
 logger = logging.getLogger(__name__)
 
@@ -52,14 +57,8 @@ Seja abrangente: identifique pelo menos uma ameaça por categoria STRIDE para os
 Retorne APENAS o JSON, sem texto adicional.
 """
 
-_STRIDE_CATEGORIES = {
-    "Spoofing",
-    "Tampering",
-    "Repudiation",
-    "Information Disclosure",
-    "Denial of Service",
-    "Elevation of Privilege",
-}
+# Usa o enum StrideCategory como fonte única de categorias válidas
+_STRIDE_CATEGORIES = {c.value for c in StrideCategory}
 
 
 async def generate_stride_threats(

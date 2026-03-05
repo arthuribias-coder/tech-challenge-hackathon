@@ -1,5 +1,10 @@
 """
 Serviço de orquestração: coordena a análise de diagrama e a geração do relatório STRIDE.
+
+.. deprecated::
+    Lógica legada da versão pré-LangGraph. A lógica ativa está em
+    ``app/graphs/analysis_graph.py`` (pipeline completo via StateGraph).
+    Este módulo será removido em uma versão futura.
 """
 
 import logging

@@ -1,7 +1,7 @@
-{% extends "base.html" %} {% block title %}Nova Análise — STRIDE Threat Modeler{% endblock %} {% block content %}
+{% extends "base.html" %} {% block title %}Nova Análise — STRIDE Threat Modeler{% endblock %} {% block nav_analysis %}nav-active{% endblock %} {% block content %}
 <section class="hero">
   <h1 class="hero__title">Modelagem de Ameaças com IA</h1>
-  <p class="hero__subtitle">Faça upload do diagrama de arquitetura do seu sistema e receba um relatório completo de ameaças baseado na metodologia <strong>STRIDE</strong>.</p>
+  <p class="hero__subtitle">Envie o diagrama de arquitetura e receba um relatório completo de ameaças <strong>STRIDE</strong> em tempo real.</p>
 </section>
 
 <section class="stride-legend card">
@@ -18,15 +18,15 @@
 
 <section class="upload-section card">
   <h2 class="section-title">Enviar Diagrama</h2>
-  <form id="upload-form" method="post" action="/analysis/" enctype="multipart/form-data">
+  <form id="upload-form" enctype="multipart/form-data">
     <div class="form-group">
-      <label for="diagram" class="form-label">Imagem do Diagrama de Arquitetura</label>
+      <label class="form-label">Imagem do Diagrama de Arquitetura</label>
       <div class="dropzone" id="dropzone">
-        <input type="file" id="diagram" name="diagram" accept="image/jpeg,image/png,image/gif,image/webp" class="dropzone__input" required />
+        <input type="file" id="diagram" name="diagram" accept="image/jpeg,image/png,image/gif,image/webp" class="dropzone__input" />
         <div class="dropzone__placeholder" id="dropzone-placeholder">
           <span class="dropzone__icon">&#128444;</span>
-          <p>Arraste e solte a imagem aqui, ou <strong>clique para selecionar</strong></p>
-          <p class="dropzone__hint">JPEG, PNG, GIF, WebP &mdash; máximo 10MB</p>
+          <p>Arraste e solte ou <strong>clique para selecionar</strong></p>
+          <p class="dropzone__hint">JPEG, PNG, GIF, WebP &mdash; máx. 10MB</p>
         </div>
         <div class="dropzone__preview" id="dropzone-preview" style="display: none">
           <img id="preview-img" src="" alt="Preview" />
@@ -37,13 +37,30 @@
 
     <div class="form-group">
       <label for="notes" class="form-label">Observações adicionais <span class="form-optional">(opcional)</span></label>
-      <textarea id="notes" name="notes" rows="3" placeholder="Ex: Este é um sistema de e-commerce com dados sensíveis de cartão de crédito..." class="form-textarea"></textarea>
+      <textarea id="notes" name="notes" rows="3" placeholder="Ex: sistema de e-commerce com dados de cartão de crédito..." class="form-textarea"></textarea>
     </div>
 
-    <button type="submit" class="btn btn--primary btn--large" id="submit-btn">
+    <button type="submit" class="btn btn--primary btn--large" id="submit-btn" disabled>
       <span id="btn-text">Analisar Diagrama</span>
-      <span id="btn-loading" style="display: none">Analisando... (aguarde)</span>
+      <span id="btn-loading" style="display: none">Analisando...</span>
     </button>
   </form>
 </section>
+
+<!-- Stepper de progresso (oculto até iniciar análise) -->
+<section class="card" style="display: none" id="stepper-container">
+  <div id="analysis-stepper" class="stepper"></div>
+</section>
+
+<!-- Relatório inline (preenchido pelo JS via SSE) -->
+<section id="report-section"></section>
+{% endblock %} {% block scripts %}
+<script src="/static/js/report-chat.js"></script>
+<script src="/static/js/analysis.js"></script>
+<script>
+  // Mostra o stepper container quando a análise começa
+  document.getElementById("upload-form").addEventListener("submit", () => {
+    document.getElementById("stepper-container").style.display = "block";
+  });
+</script>
 {% endblock %}
