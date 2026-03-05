@@ -1,6 +1,11 @@
 """
 Serviço de análise de diagramas de arquitetura usando Google Gemini Vision.
 Responsável por identificar os componentes da arquitetura a partir de uma imagem.
+
+.. deprecated::
+    Lógica legada da versão pré-LangGraph. A lógica ativa está em
+    ``app/nodes/component_mapper.py`` (map_components_node / vision_fallback_node).
+    Este módulo será removido em uma versão futura.
 """
 
 import json
@@ -11,6 +16,7 @@ from google import genai
 from google.genai import types
 
 from app.config import settings
+from app.constants import DEFAULT_MIME_TYPE, EXTENSION_TO_MIME
 from app.models.schemas import ArchitectureComponent
 
 logger = logging.getLogger(__name__)
@@ -38,14 +44,7 @@ Retorne APENAS o JSON, sem texto adicional.
 
 def _get_image_mime_type(image_path: Path) -> str:
     suffix = image_path.suffix.lower()
-    mime_types = {
-        ".jpg": "image/jpeg",
-        ".jpeg": "image/jpeg",
-        ".png": "image/png",
-        ".gif": "image/gif",
-        ".webp": "image/webp",
-    }
-    return mime_types.get(suffix, "image/png")
+    return EXTENSION_TO_MIME.get(suffix, DEFAULT_MIME_TYPE)
 
 
 async def extract_components(image_path: Path) -> list[ArchitectureComponent]:

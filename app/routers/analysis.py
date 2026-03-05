@@ -20,21 +20,20 @@ from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 
 from app.config import settings
+from app.constants import (
+    ALLOWED_CONTENT_TYPES,
+    DEFAULT_MIME_TYPE,
+    MIME_TO_EXTENSION,
+    TEMPLATES_DIRECTORY,
+)
 from app.graphs.analysis_graph import NODE_LABELS, analysis_graph
 from app.models.schemas import AnalysisState
+from app.utils.sse import create_sse_response, format_sse, sse_done
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/analysis", tags=["analysis"])
-templates = Jinja2Templates(directory="app/templates")
-
-_ALLOWED_CONTENT_TYPES = {"image/jpeg", "image/png", "image/gif", "image/webp"}
-_MIME_TO_EXT: dict[str, str] = {
-    "image/jpeg": ".jpg",
-    "image/png": ".png",
-    "image/gif": ".gif",
-    "image/webp": ".webp",
-}
+templates = Jinja2Templates(directory=TEMPLATES_DIRECTORY)
 
 
 # ---------------------------------------------------------------------------
@@ -55,12 +54,10 @@ def _initial_state(image_path: Path, notes: str, mime_type: str) -> AnalysisStat
         report={},
         step="start",
         error=None,
+        is_valid_diagram=True,
+        validation_message="",
+        detected_type="",
     )
-
-
-def _sse(payload: dict) -> str:
-    """Formata um payload como evento SSE."""
-    return f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
 
 
 async def _save_upload(diagram: UploadFile) -> tuple[Path, str]:
@@ -72,8 +69,8 @@ async def _save_upload(diagram: UploadFile) -> tuple[Path, str]:
             detail=f"Arquivo muito grande. Máximo: {settings.max_upload_size_mb}MB.",
         )
 
-    mime = diagram.content_type or "image/png"
-    ext = _MIME_TO_EXT.get(mime, Path(diagram.filename or "img.png").suffix or ".png")
+    mime = diagram.content_type or DEFAULT_MIME_TYPE
+    ext = MIME_TO_EXTENSION.get(mime, Path(diagram.filename or "img.png").suffix or ".png")
     upload_dir = Path(settings.upload_dir)
     upload_dir.mkdir(parents=True, exist_ok=True)
 
@@ -107,7 +104,7 @@ async def upload_diagram(
     Salva o arquivo e retorna {upload_id, image_filename, notes, mime_type}.
     O frontend conecta ao SSE stream usando o upload_id retornado.
     """
-    if diagram.content_type not in _ALLOWED_CONTENT_TYPES:
+    if diagram.content_type not in ALLOWED_CONTENT_TYPES:
         raise HTTPException(
             status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
             detail=f"Tipo não suportado: {diagram.content_type}. Use JPEG, PNG, GIF ou WebP.",
@@ -128,7 +125,7 @@ async def upload_diagram(
 async def analysis_stream(
     upload_id: str,
     notes: str = "",
-    mime_type: str = "image/png",
+    mime_type: str = DEFAULT_MIME_TYPE,
 ) -> StreamingResponse:
     """
     Executa o pipeline LangGraph e emite eventos SSE com progresso em tempo real.
@@ -157,12 +154,44 @@ async def analysis_stream(
                     label = NODE_LABELS.get(node_name, node_name)
                     step = node_output.get("step", node_name)
 
-                    yield _sse({"type": "progress", "node": node_name, "label": label, "step": step})
+                    yield format_sse({"type": "progress", "node": node_name, "label": label, "step": step})
+
+                    if node_name == "validate_diagram" and not node_output.get("is_valid_diagram", True):
+                        yield format_sse({
+                            "type": "invalid_diagram",
+                            "detected_type": node_output.get("detected_type", "Imagem não reconhecida"),
+                            "message": node_output.get("validation_message", "A imagem enviada não parece ser um diagrama de arquitetura."),
+                        })
+                        yield sse_done()
+                        return
 
                     if node_name == "compile_report" and node_output.get("report"):
-                        yield _sse({
+                        report_data = node_output["report"]
+
+                        # Persiste o relatório em disco para o chat contextual
+                        report_json_path = upload_dir / f"{upload_id}.report.json"
+                        try:
+                            report_json_path.write_text(
+                                json.dumps(
+                                    {
+                                        "report": report_data,
+                                        "image_filename": image_filename,
+                                        "image_path": str(image_path),
+                                        "mime_type": mime_type,
+                                        "notes": notes,
+                                    },
+                                    ensure_ascii=False,
+                                    indent=2,
+                                ),
+                                encoding="utf-8",
+                            )
+                            logger.info("Relatório persistido: %s", report_json_path)
+                        except Exception as write_exc:
+                            logger.warning("Não foi possível persistir o relatório: %s", write_exc)
+
+                        yield format_sse({
                             "type": "complete",
-                            "report": node_output["report"],
+                            "report": report_data,
                             "image_filename": image_filename,
                         })
 
@@ -171,16 +200,8 @@ async def analysis_stream(
 
         except Exception as exc:
             logger.error("Erro no pipeline de análise: %s", exc, exc_info=True)
-            yield _sse({"type": "error", "message": str(exc)})
+            yield format_sse({"type": "error", "message": str(exc)})
 
-        yield "data: [DONE]\n\n"
+        yield sse_done()
 
-    return StreamingResponse(
-        event_generator(),
-        media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-            "X-Accel-Buffering": "no",
-        },
-    )
+    return create_sse_response(event_generator())

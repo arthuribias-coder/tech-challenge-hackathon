@@ -23,6 +23,15 @@ from typing import Any
 import cv2
 import numpy as np
 
+from app.constants import (
+    DIAGRAM_CLASSES,
+    MAX_DETECTED_SHAPES,
+    OCR_CONFIDENCE_THRESHOLD,
+    SHAPE_MIN_AREA_RATIO,
+    TEXT_ASSOCIATION_MAX_DISTANCE_PX,
+    YOLO_CONFIDENCE_THRESHOLD,
+    YOLO_MODEL_PATH,
+)
 from app.models.schemas import AnalysisState
 
 logger = logging.getLogger(__name__)
@@ -33,15 +42,6 @@ logger = logging.getLogger(__name__)
 
 _EASYOCR_AVAILABLE = importlib.util.find_spec("easyocr") is not None
 _ULTRALYTICS_AVAILABLE = importlib.util.find_spec("ultralytics") is not None
-
-# Vocabulário para YOLO-World em diagrams de arquitetura
-_DIAGRAM_CLASSES = [
-    "web server", "application server", "database", "cache",
-    "message queue", "load balancer", "firewall", "api gateway",
-    "user", "browser", "mobile app", "cloud storage", "cdn",
-    "microservice", "container", "kubernetes", "vpn", "proxy",
-    "sdk", "external service", "iot device", "email server",
-]
 
 
 def _detect_shapes(image: np.ndarray) -> list[dict[str, Any]]:
@@ -58,7 +58,7 @@ def _detect_shapes(image: np.ndarray) -> list[dict[str, Any]]:
 
     shapes: list[dict[str, Any]] = []
     h, w = image.shape[:2]
-    min_area = (w * h) * 0.002  # ignora ruídos muito pequenos
+    min_area = (w * h) * SHAPE_MIN_AREA_RATIO  # ignora ruídos muito pequenos
 
     for contour in contours:
         area = cv2.contourArea(contour)
@@ -94,7 +94,7 @@ def _detect_shapes(image: np.ndarray) -> list[dict[str, Any]]:
 
     # Ordena por área decrescente (componentes maiores primeiro)
     shapes.sort(key=lambda s: s["area"], reverse=True)
-    return shapes[:40]  # limita a 40 formas para não poluir o contexto
+    return shapes[:MAX_DETECTED_SHAPES]  # limita formas para não poluir o contexto
 
 
 def _extract_text_easyocr(image_path: Path) -> list[dict[str, Any]]:
@@ -106,7 +106,7 @@ def _extract_text_easyocr(image_path: Path) -> list[dict[str, Any]]:
 
     texts: list[dict[str, Any]] = []
     for bbox_points, text, confidence in results:
-        if confidence < 0.3 or not text.strip():
+        if confidence < OCR_CONFIDENCE_THRESHOLD or not text.strip():
             continue
         # bbox_points = [[x1,y1],[x2,y1],[x2,y2],[x1,y2]]
         xs = [p[0] for p in bbox_points]
@@ -158,7 +158,7 @@ def _associate_text_to_shapes(
                 best_dist = effective
                 best_idx = i
 
-        if best_idx >= 0 and best_dist < 300:  # limiar de 300 px
+        if best_idx >= 0 and best_dist < TEXT_ASSOCIATION_MAX_DISTANCE_PX:  # limiar espacial
             prev = updated[best_idx]["text"]
             sep = " | " if prev else ""
             updated[best_idx]["text"] = prev + sep + text_item["text"]
@@ -170,15 +170,15 @@ def _run_yolo_world(image_path: Path) -> list[dict[str, Any]]:
     """Enriquece detecções com YOLO-World (classificação semântica de ícones)."""
     from ultralytics import YOLOWorld  # noqa: PLC0415 — lazy import intencional
 
-    model = YOLOWorld("yolov8s-world.pt")
-    model.set_classes(_DIAGRAM_CLASSES)
-    results = model.predict(str(image_path), verbose=False, conf=0.25)
+    model = YOLOWorld(YOLO_MODEL_PATH)
+    model.set_classes(DIAGRAM_CLASSES)
+    results = model.predict(str(image_path), verbose=False, conf=YOLO_CONFIDENCE_THRESHOLD)
 
     detections: list[dict[str, Any]] = []
     for result in results:
         for box in result.boxes:
             cls_id = int(box.cls[0])
-            label = _DIAGRAM_CLASSES[cls_id] if cls_id < len(_DIAGRAM_CLASSES) else "unknown"
+            label = DIAGRAM_CLASSES[cls_id] if cls_id < len(DIAGRAM_CLASSES) else "unknown"
             x1, y1, x2, y2 = [int(v) for v in box.xyxy[0].tolist()]
             detections.append({
                 "id": len(detections),

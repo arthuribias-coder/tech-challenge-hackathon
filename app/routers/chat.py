@@ -9,22 +9,23 @@ Endpoints:
 
 from __future__ import annotations
 
-import json
 import logging
 import uuid
 
-from fastapi import APIRouter, HTTPException, Request, status
+from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 from langchain_core.messages import HumanMessage
 from pydantic import BaseModel, Field
 
+from app.constants import TEMPLATES_DIRECTORY
 from app.graphs.chat_graph import chat_graph
+from app.utils.sse import create_sse_response, format_sse, sse_done
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/chat", tags=["chat"])
-templates = Jinja2Templates(directory="app/templates")
+templates = Jinja2Templates(directory=TEMPLATES_DIRECTORY)
 
 
 # ---------------------------------------------------------------------------
@@ -35,15 +36,6 @@ templates = Jinja2Templates(directory="app/templates")
 class ChatStreamRequest(BaseModel):
     message: str = Field(min_length=1, max_length=4000)
     session_id: str = Field(default_factory=lambda: uuid.uuid4().hex)
-
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-
-def _sse(payload: dict) -> str:
-    return f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
 
 
 # ---------------------------------------------------------------------------
@@ -85,34 +77,26 @@ async def chat_stream(body: ChatStreamRequest) -> StreamingResponse:
                     if chunk and hasattr(chunk, "content") and chunk.content:
                         content = chunk.content
                         if isinstance(content, str):
-                            yield _sse({"type": "token", "content": content})
+                            yield format_sse({"type": "token", "content": content})
                         elif isinstance(content, list):
                             # Gemini pode retornar lista de parts
                             for part in content:
                                 if isinstance(part, dict) and part.get("type") == "text":
-                                    yield _sse({"type": "token", "content": part["text"]})
+                                    yield format_sse({"type": "token", "content": part["text"]})
 
                 elif event_type == "on_tool_start":
                     tool_name = name.replace("_", " ").title()
-                    yield _sse({"type": "tool_use", "name": tool_name})
+                    yield format_sse({"type": "tool_use", "name": tool_name})
 
                 elif event_type == "on_tool_end":
                     output = event["data"].get("output", "")
                     tool_name = name.replace("_", " ").title()
-                    yield _sse({"type": "tool_result", "name": tool_name, "result": str(output)[:500]})
+                    yield format_sse({"type": "tool_result", "name": tool_name, "result": str(output)[:500]})
 
         except Exception as exc:
             logger.error("Erro no chat stream: %s", exc, exc_info=True)
-            yield _sse({"type": "error", "message": str(exc)})
+            yield format_sse({"type": "error", "message": str(exc)})
 
-        yield "data: [DONE]\n\n"
+        yield sse_done()
 
-    return StreamingResponse(
-        token_generator(),
-        media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-            "X-Accel-Buffering": "no",
-        },
-    )
+    return create_sse_response(token_generator())

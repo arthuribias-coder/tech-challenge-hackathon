@@ -4,6 +4,8 @@ FastAPI + LangGraph MVP que analisa diagramas de arquitetura (imagens) e gera re
 
 ## Comandos Essenciais
 
+SEMPRE USE O VENV DO PROJETO PARA GARANTIR AS DEPENDÊNCIAS CORRETAS. No terminal, navegue até a raiz do projeto e ative o ambiente virtual.
+
 ```bash
 uvicorn app.main:app --reload   # servidor de desenvolvimento
 pytest                          # testes com cobertura (pyproject.toml configura --cov=app)
@@ -76,6 +78,7 @@ Sem elas, `has_yolo_detections` sempre será `False` e o pipeline usa Gemini Vis
 ## Observabilidade (LangSmith)
 
 Adicionar ao `.env` para habilitar tracing:
+
 ```env
 LANGCHAIN_TRACING_V2=true
 LANGCHAIN_API_KEY=ls__...

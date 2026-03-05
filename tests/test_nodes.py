@@ -25,6 +25,9 @@ def _base_state(**kwargs) -> AnalysisState:
         "report": None,
         "step": "init",
         "error": None,
+        "is_valid_diagram": True,
+        "validation_message": "",
+        "detected_type": "",
     }
     state.update(kwargs)
     return state
@@ -38,6 +41,83 @@ class TestReportCompilerNode:
         state = _base_state()
         result = _run(compile_report_node(state))
         assert "report" in result
+
+
+class TestDiagramValidatorNode:
+    """Testa validate_diagram_node com mock do Gemini."""
+
+    @patch("app.nodes.diagram_validator._classify_image")
+    def test_valid_diagram_accepted(self, mock_classify):
+        from app.nodes.diagram_validator import validate_diagram_node, _DiagramClassification
+        mock_classify.return_value = _DiagramClassification(
+            is_architecture_diagram=True,
+            confidence=0.95,
+            detected_type="diagrama de arquitetura AWS",
+            rejection_reason="",
+            suggestion="",
+        )
+        state = _base_state()
+        result = _run(validate_diagram_node(state))
+        assert result["is_valid_diagram"] is True
+        assert result["detected_type"] == "diagrama de arquitetura AWS"
+
+    @patch("app.nodes.diagram_validator._classify_image")
+    def test_random_image_rejected(self, mock_classify):
+        from app.nodes.diagram_validator import validate_diagram_node, _DiagramClassification
+        mock_classify.return_value = _DiagramClassification(
+            is_architecture_diagram=False,
+            confidence=0.92,
+            detected_type="fotografia de paisagem",
+            rejection_reason="A imagem é uma fotografia, não um diagrama.",
+            suggestion="Envie um diagrama criado em draw.io.",
+        )
+        state = _base_state()
+        result = _run(validate_diagram_node(state))
+        assert result["is_valid_diagram"] is False
+        assert "fotografia" in result["detected_type"]
+        assert result["validation_message"] != ""
+
+    @patch("app.nodes.diagram_validator._classify_image")
+    def test_low_confidence_rejected(self, mock_classify):
+        from app.nodes.diagram_validator import validate_diagram_node, _DiagramClassification
+        mock_classify.return_value = _DiagramClassification(
+            is_architecture_diagram=True,
+            confidence=0.3,
+            detected_type="imagem ambígua",
+            rejection_reason="Confiança muito baixa.",
+            suggestion="Envie uma imagem mais clara.",
+        )
+        state = _base_state()
+        result = _run(validate_diagram_node(state))
+        assert result["is_valid_diagram"] is False
+
+    @patch("app.nodes.diagram_validator._classify_image")
+    def test_gemini_error_rejects(self, mock_classify):
+        from app.nodes.diagram_validator import validate_diagram_node
+        mock_classify.return_value = None
+        state = _base_state()
+        result = _run(validate_diagram_node(state))
+        assert result["is_valid_diagram"] is False
+        assert "Não foi possível validar" in result["validation_message"]
+
+    @patch("app.nodes.diagram_validator._classify_image")
+    def test_screenshot_rejected(self, mock_classify):
+        from app.nodes.diagram_validator import validate_diagram_node, _DiagramClassification
+        mock_classify.return_value = _DiagramClassification(
+            is_architecture_diagram=False,
+            confidence=0.88,
+            detected_type="captura de tela do Windows",
+            rejection_reason="A imagem é um screenshot de sistema operacional.",
+            suggestion="Envie um diagrama de arquitetura.",
+        )
+        state = _base_state()
+        result = _run(validate_diagram_node(state))
+        assert result["is_valid_diagram"] is False
+        assert "captura de tela" in result["detected_type"]
+
+
+class TestReportCompilerNodeExtended:
+    """Testa compile_report_node com cenários adicionais."""
 
     def test_with_valid_threats(self):
         from app.nodes.report_compiler import compile_report_node
@@ -115,7 +195,7 @@ class TestAnalysisGraphStructure:
 
     def test_node_labels_coverage(self):
         from app.graphs.analysis_graph import NODE_LABELS
-        required = {"detect_shapes", "map_components", "vision_fallback",
+        required = {"validate_diagram", "detect_shapes", "map_components", "vision_fallback",
                     "analyze_stride", "compile_report"}
         assert required.issubset(set(NODE_LABELS.keys()))
 

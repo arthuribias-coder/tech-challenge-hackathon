@@ -16,5 +16,5 @@ langgraph>=0.6.0
 # Computer Vision (lazy import — instalado separadamente se necessario)
 opencv-python-headless>=4.10.0
 # Opcional — lazy import, nao bloqueia inicializacao
-# ultralytics>=8.3.0
+ultralytics>=8.3.0
 # easyocr>=1.7.0

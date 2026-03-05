@@ -77,7 +77,7 @@ async def test_analysis_form_page():
 async def test_analysis_upload_invalid_file_type():
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         response = await client.post(
-            "/analysis/",
+            "/analysis/upload",
             files={"diagram": ("test.pdf", b"%PDF content", "application/pdf")},
             data={"notes": ""},
         )
@@ -89,7 +89,7 @@ async def test_analysis_upload_file_too_large():
     large_content = b"x" * (11 * 1024 * 1024)  # 11MB
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         response = await client.post(
-            "/analysis/",
+            "/analysis/upload",
             files={"diagram": ("large.png", large_content, "image/png")},
             data={"notes": ""},
         )
@@ -97,7 +97,7 @@ async def test_analysis_upload_file_too_large():
 
 
 @pytest.mark.asyncio
-async def test_analysis_upload_success(mock_report: ThreatReport):
+async def test_analysis_upload_success():
     small_png = (
         b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01"
         b"\x00\x00\x00\x01\x08\x02\x00\x00\x00\x90wS\xde\x00\x00"
@@ -105,15 +105,14 @@ async def test_analysis_upload_success(mock_report: ThreatReport):
         b"\xd8N\x00\x00\x00\x00IEND\xaeB`\x82"
     )
 
-    with patch(
-        "app.routers.analysis.generate_threat_report",
-        new_callable=lambda: lambda: AsyncMock(return_value=mock_report),
-    ):
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-            response = await client.post(
-                "/analysis/",
-                files={"diagram": ("architecture.png", small_png, "image/png")},
-                data={"notes": "sistema de teste"},
-            )
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.post(
+            "/analysis/upload",
+            files={"diagram": ("architecture.png", small_png, "image/png")},
+            data={"notes": "sistema de teste"},
+        )
     assert response.status_code == 200
-    assert b"Relatório" in response.content or b"STRIDE" in response.content
+    data = response.json()
+    assert "upload_id" in data
+    assert "image_filename" in data
+    assert data["mime_type"] == "image/png"

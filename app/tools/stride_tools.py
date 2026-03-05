@@ -115,9 +115,10 @@ _STRIDE_DETAILS: dict[str, dict] = {
 }
 
 _RISK_MATRIX: dict[str, dict[str, int]] = {
-    "alta":  {"alta": 9, "média": 7, "baixa": 5},
-    "média": {"alta": 7, "média": 5, "baixa": 3},
-    "baixa": {"alta": 5, "média": 3, "baixa": 1},
+    "crítica": {"alta": 10, "média": 9, "baixa": 8},
+    "alta":    {"alta": 9, "média": 7, "baixa": 5},
+    "média":  {"alta": 7, "média": 5, "baixa": 3},
+    "baixa":  {"alta": 5, "média": 3, "baixa": 1},
 }
 
 _OWASP_MAPPING: dict[str, list[str]] = {
@@ -186,28 +187,30 @@ def explain_stride_category(category: str) -> str:
 @tool
 def calculate_risk_score(severity: str, likelihood: str) -> str:
     """
-    Calcula o score de risco (1-9) e classificação com base na severidade do impacto
+    Calcula o score de risco (1-10) e classificação com base na severidade do impacto
     e na probabilidade de ocorrência.
-    Parâmetros: severity e likelihood devem ser 'alta', 'média' ou 'baixa'.
+    Parâmetros: severity e likelihood devem ser 'crítica', 'alta', 'média' ou 'baixa'.
     """
     sev = severity.lower().strip()
     lik = likelihood.lower().strip()
 
     # Normaliza variações em português
-    norm = {"alto": "alta", "medio": "média", "medio": "média", "baixo": "baixa"}
+    norm = {"critica": "crítica", "crítico": "crítica", "alto": "alta", "medio": "média", "baixo": "baixa"}
     sev = norm.get(sev, sev)
     lik = norm.get(lik, lik)
 
     row = _RISK_MATRIX.get(sev)
     if not row:
-        return f"Severidade inválida: '{severity}'. Use: alta, média ou baixa."
+        return f"Severidade inválida: '{severity}'. Use: crítica, alta, média ou baixa."
 
     score = row.get(lik)
     if score is None:
         return f"Probabilidade inválida: '{likelihood}'. Use: alta, média ou baixa."
 
-    if score >= 7:
-        level, action = "CRÍTICO", "Ação imediata necessária"
+    if score >= 9:
+        level, action = "CRÍTICO", "Ação imediata e emergencial"
+    elif score >= 7:
+        level, action = "ALTO", "Ação imediata necessária"
     elif score >= 5:
         level, action = "ALTO", "Mitigação prioritária (próximo sprint)"
     elif score >= 3:

@@ -27,13 +27,8 @@ from __future__ import annotations
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.prebuilt import create_react_agent
 
-from app.config import settings
 from app.tools.stride_tools import STRIDE_TOOLS
-
-try:
-    from langchain_google_genai import ChatGoogleGenerativeAI
-except ImportError as exc:
-    raise ImportError("Instale langchain-google-genai: pip install langchain-google-genai") from exc
+from app.utils.llm import create_chat_llm
 
 # ---------------------------------------------------------------------------
 # System prompt do especialista STRIDE
@@ -66,11 +61,7 @@ _SYSTEM_PROMPT = (
 
 def _build_chat_graph():
     """Constrói o agente ReAct com memória e ferramentas STRIDE."""
-    llm = ChatGoogleGenerativeAI(
-        model=settings.gemini_model,
-        google_api_key=settings.gemini_api_key,
-        temperature=0.7,
-    )
+    llm = create_chat_llm()
 
     memory = MemorySaver()
 

@@ -27,7 +27,7 @@ class Threat(BaseModel):
     title: str = Field(description="Título curto da ameaça")
     description: str = Field(description="Descrição detalhada da ameaça")
     affected_component: str = Field(description="Componente afetado")
-    severity: str = Field(description="Alta, Média ou Baixa")
+    severity: str = Field(description="Crítica, Alta, Média ou Baixa")
     countermeasures: list[str] = Field(description="Lista de contramedidas recomendadas")
 
 
@@ -74,3 +74,8 @@ class AnalysisState(TypedDict):
     # Controle de fluxo e progresso
     step: str
     error: Optional[str]
+
+    # Validação de diagrama (nó validate_diagram)
+    is_valid_diagram: bool
+    validation_message: str    # mensagem descritiva quando inválido
+    detected_type: str         # o que foi detectado na imagem

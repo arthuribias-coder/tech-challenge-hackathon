@@ -11,11 +11,10 @@ import json
 import logging
 
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_google_genai import ChatGoogleGenerativeAI
 from pydantic import BaseModel, Field
 
-from app.config import settings
 from app.models.schemas import AnalysisState, StrideCategory
+from app.utils.llm import create_stride_llm
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +28,7 @@ class _Threat(BaseModel):
     title: str = Field(description="Título curto e descritivo da ameaça")
     description: str = Field(description="Como esta ameaça pode se concretizar neste componente")
     affected_component: str = Field(description="Nome exato do componente afetado")
-    severity: str = Field(description="Alta | Média | Baixa")
+    severity: str = Field(description="Crítica | Alta | Média | Baixa")
     countermeasures: list[str] = Field(
         description="Contramedidas específicas e implementáveis (mínimo 2)"
     )
@@ -57,6 +56,8 @@ _STRIDE_SYSTEM = (
     "- Denial of Service: Tornar serviços indisponíveis\n"
     "- Elevation of Privilege: Obter acesso não autorizado a recursos privilegiados\n\n"
     "Seja abrangente: identifique ao menos uma ameaça por categoria para os componentes mais críticos. "
+    "Classifique a severidade como Crítica (exploração trivial, impacto catastrófico), "
+    "Alta (alto impacto ou facilmente explorado), Média ou Baixa conforme o risco real. "
     "Sugira contramedidas concretas e implementáveis."
 )
 
@@ -71,14 +72,6 @@ _STRIDE_PROMPT = ChatPromptTemplate.from_messages([
         ),
     ),
 ])
-
-
-def _get_llm() -> ChatGoogleGenerativeAI:
-    return ChatGoogleGenerativeAI(
-        model=settings.gemini_model,
-        google_api_key=settings.gemini_api_key,
-        temperature=0.3,
-    )
 
 
 async def analyze_stride_node(state: AnalysisState) -> dict:
@@ -98,7 +91,7 @@ async def analyze_stride_node(state: AnalysisState) -> dict:
     logger.info("[analyze_stride] Analisando %d componentes", len(components))
 
     try:
-        llm = _get_llm()
+        llm = create_stride_llm()
         chain = _STRIDE_PROMPT | llm.with_structured_output(_StrideAnalysis)
 
         components_json = json.dumps(components, ensure_ascii=False, indent=2)

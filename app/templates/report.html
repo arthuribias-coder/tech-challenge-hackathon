@@ -27,8 +27,12 @@
 
 <!-- Estatísticas -->
 <div class="stats-row">
-  {% set high = threats | selectattr("severity", "equalto", "Alta") | list | length %} {% set medium = threats | selectattr("severity", "equalto", "Média") | list | length %} {% set low = threats | selectattr("severity", "equalto", "Baixa")
-  | list | length %}
+  {% set critical = threats | selectattr("severity", "equalto", "Crítica") | list | length %} {% set high = threats | selectattr("severity", "equalto", "Alta") | list | length %} {% set medium = threats | selectattr("severity", "equalto",
+  "Média") | list | length %} {% set low = threats | selectattr("severity", "equalto", "Baixa") | list | length %}
+  <div class="stat-card stat-card--critical">
+    <span class="stat-card__number">{{ critical }}</span>
+    <span class="stat-card__label">Severidade Crítica</span>
+  </div>
   <div class="stat-card stat-card--high">
     <span class="stat-card__number">{{ high }}</span>
     <span class="stat-card__label">Severidade Alta</span>
@@ -200,6 +204,7 @@
       );
     }
 
+    const criticalCount = parseInt(document.querySelector(".stat-card--critical .stat-card__number")?.textContent) || 0;
     const highCount = parseInt(document.querySelector(".stat-card--high .stat-card__number")?.textContent) || 0;
     const medCount = parseInt(document.querySelector(".stat-card--medium .stat-card__number")?.textContent) || 0;
     const lowCount = parseInt(document.querySelector(".stat-card--low .stat-card__number")?.textContent) || 0;
@@ -210,8 +215,8 @@
         ctxSev,
         Object.assign({}, chartDefaults, {
           data: {
-            labels: ["Alta", "Média", "Baixa"],
-            datasets: [{ data: [highCount, medCount, lowCount], backgroundColor: ["#e74c3c", "#f39c12", "#2ecc71"], borderWidth: 2, borderColor: "#1a1d27" }],
+            labels: ["Crítica", "Alta", "Média", "Baixa"],
+            datasets: [{ data: [criticalCount, highCount, medCount, lowCount], backgroundColor: ["#a855f7", "#e74c3c", "#f39c12", "#2ecc71"], borderWidth: 2, borderColor: "#1a1d27" }],
           },
         }),
       );

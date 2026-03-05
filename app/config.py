@@ -8,7 +8,9 @@ class Settings(BaseSettings):
 
     # Gemini
     gemini_api_key: str = ""
-    gemini_model: str = "gemini-2.5-flash"
+    gemini_model: str = "gemini-2.5-flash"          # análise de diagramas (suporta visão)
+    gemini_chat_model: str = "gemini-2.0-flash"     # chat multiturno com tools (sem thinking obrigatório)
+    gemini_validator_model: str = "gemini-2.0-flash-lite"  # validação de diagrama (modelo econômico)
 
     # App
     debug: bool = False

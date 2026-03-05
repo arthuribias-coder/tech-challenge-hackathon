@@ -17,11 +17,11 @@ from pathlib import Path
 
 from langchain_core.messages import HumanMessage
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_google_genai import ChatGoogleGenerativeAI
 from pydantic import BaseModel, Field
 
-from app.config import settings
+from app.constants import DEFAULT_MIME_TYPE
 from app.models.schemas import AnalysisState
+from app.utils.llm import create_analysis_llm
 
 logger = logging.getLogger(__name__)
 
@@ -100,14 +100,6 @@ def _format_detections_for_llm(detections: list[dict]) -> str:
     return "\n".join(lines) if lines else "(nenhuma detecção)"
 
 
-def _get_llm() -> ChatGoogleGenerativeAI:
-    return ChatGoogleGenerativeAI(
-        model=settings.gemini_model,
-        google_api_key=settings.gemini_api_key,
-        temperature=0.1,
-    )
-
-
 async def map_components_node(state: AnalysisState) -> dict:
     """
     Nó LangGraph: converte detecções brutas em ArchitectureComponents via LLM text-only.
@@ -116,7 +108,7 @@ async def map_components_node(state: AnalysisState) -> dict:
     logger.info("[map_components] Mapeando %d detecções", len(state.get("detections", [])))
 
     try:
-        llm = _get_llm()
+        llm = create_analysis_llm()
         chain = _MAPPER_PROMPT | llm.with_structured_output(_ComponentList)
 
         detections_text = _format_detections_for_llm(state.get("detections", []))
@@ -147,9 +139,9 @@ async def vision_fallback_node(state: AnalysisState) -> dict:
 
     try:
         image_b64 = base64.b64encode(image_path.read_bytes()).decode()
-        mime = state.get("mime_type", "image/png")
+        mime = state.get("mime_type", DEFAULT_MIME_TYPE)
 
-        llm = _get_llm()
+        llm = create_analysis_llm()
         chain = llm.with_structured_output(_ComponentList)
 
         message = HumanMessage(

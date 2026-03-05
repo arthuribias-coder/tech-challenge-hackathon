@@ -34,6 +34,7 @@
   // Passos do stepper (alinhado ao NODE_LABELS do backend)
   // -----------------------------------------------------------------------
   const STEPS = [
+    { node: "validate_diagram", label: "Validação", icon: "🔎" },
     { node: "detect_shapes", label: "Detecção Visual", icon: "🔍" },
     { node: "map_components", label: "Mapeamento", icon: "🗺️" },
     { node: "vision_fallback", label: "IA Vision", icon: "👁️" },
@@ -137,7 +138,7 @@
 
         try {
           const payload = JSON.parse(event.data);
-          handleStreamEvent(payload, image_filename);
+          handleStreamEvent(payload, image_filename, upload_id);
         } catch (_) {
           /* ignora JSON inválido */
         }
@@ -157,16 +158,36 @@
   // -----------------------------------------------------------------------
   // Eventos SSE
   // -----------------------------------------------------------------------
-  function handleStreamEvent(payload, imageName) {
+  function handleStreamEvent(payload, imageName, uploadId) {
     if (payload.type === "progress") {
       activateStep(payload.node);
+    } else if (payload.type === "invalid_diagram") {
+      setLoading(false);
+      renderInvalidDiagram(payload.detected_type, payload.message);
     } else if (payload.type === "complete") {
       completeAllSteps();
-      renderReport(payload.report, imageName || payload.image_filename);
+      renderReport(payload.report, imageName || payload.image_filename, uploadId);
     } else if (payload.type === "error") {
       showToast(`Erro na análise: ${payload.message}`, "error");
       setLoading(false);
     }
+  }
+
+  function renderInvalidDiagram(detectedType, message) {
+    reportSection.innerHTML = `
+      <div class="invalid-diagram-card">
+        <div class="invalid-diagram-icon">⚠️</div>
+        <h2 class="invalid-diagram-title">Imagem não reconhecida</h2>
+        <p class="invalid-diagram-detected">
+          Tipo detectado: <strong>${escHtml(detectedType || "Desconhecido")}</strong>
+        </p>
+        <p class="invalid-diagram-message">${escHtml(message || "A imagem enviada não parece ser um diagrama de arquitetura.")}</p>
+        <p class="invalid-diagram-hint">
+          Por favor, envie um diagrama de arquitetura válido (ex.: diagramas C4, AWS, Azure, UML de componentes ou sequência).
+        </p>
+      </div>
+    `;
+    reportSection.style.display = "block";
   }
 
   // -----------------------------------------------------------------------
@@ -280,7 +301,7 @@
   // -----------------------------------------------------------------------
   // Renderização inline do relatório
   // -----------------------------------------------------------------------
-  function renderReport(report, imageName) {
+  function renderReport(report, imageName, uploadId) {
     const threats = report.threats || [];
     const components = report.components || [];
 
@@ -418,6 +439,91 @@
 
     // Scroll suave para o relatório
     document.getElementById("report-anchor")?.scrollIntoView({ behavior: "smooth" });
+
+    // -----------------------------------------------------------------------
+    // Injeta drawer de chat contextual (remove versão anterior se existir)
+    // -----------------------------------------------------------------------
+    document.getElementById("report-chat-fab")?.remove();
+    document.getElementById("report-chat-overlay")?.remove();
+    document.getElementById("report-chat-drawer")?.remove();
+
+    const drawerFrag = document.createElement("template");
+    drawerFrag.innerHTML = `
+      <button class="report-chat-fab" id="report-chat-fab" aria-expanded="false" aria-label="Consultar IA sobre este relatório">
+        <svg class="fab-icon-chat" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+        </svg>
+        <svg class="fab-icon-close" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+        <span>Consultar IA</span>
+      </button>
+      <div class="report-chat-overlay" id="report-chat-overlay"></div>
+      <aside class="report-chat-drawer" id="report-chat-drawer" data-upload-id="${uploadId || ""}">
+        <div class="drawer-header">
+          <div class="drawer-header__info">
+            <span class="drawer-header__icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+              </svg>
+            </span>
+            <div>
+              <strong class="drawer-header__title">Analista STRIDE</strong>
+              <p class="drawer-header__subtitle">Especialista em segurança &bull; contexto deste relatório</p>
+            </div>
+          </div>
+          <button class="drawer-debug-btn" id="drawer-debug-btn" aria-label="Painel de debug" title="Debug">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline>
+            </svg>
+          </button>
+          <button class="drawer-close-btn" id="drawer-close-btn" aria-label="Fechar chat">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+        <!-- Painel de debug: oculto por padrão -->
+        <div class="drawer-debug-panel" id="drawer-debug-panel" style="display:none">
+          <div class="drawer-debug-toolbar">
+            <span class="drawer-debug-title">LangGraph Events</span>
+            <button class="drawer-debug-copy-btn" id="drawer-debug-copy-btn" title="Copiar todos os eventos">Copiar</button>
+            <button class="drawer-debug-clear-btn" id="drawer-debug-clear-btn" title="Limpar">Limpar</button>
+          </div>
+          <pre class="drawer-debug-log" id="drawer-debug-log"></pre>
+        </div>
+        <div class="drawer-messages" id="drawer-messages">
+          <div class="drawer-welcome">
+            <p>Olá! Sou seu analista de segurança focado neste relatório. Posso ajudá-lo a:</p>
+            <div class="drawer-suggestions">
+              <button class="drawer-suggestion-btn" data-msg="Quais são as ameaças mais críticas deste relatório?">Ameaças críticas</button>
+              <button class="drawer-suggestion-btn" data-msg="Explique as contramedidas recomendadas">Contramedidas</button>
+              <button class="drawer-suggestion-btn" data-msg="Como priorizar a correção das vulnerabilidades?">Priorizar correções</button>
+              <button class="drawer-suggestion-btn" data-msg="Mapear as ameaças para o MITRE ATT&amp;CK">MITRE ATT&amp;CK</button>
+            </div>
+          </div>
+        </div>
+        <div class="drawer-input-area">
+          <div class="drawer-input-wrapper">
+            <textarea class="drawer-input" id="drawer-input" rows="1" placeholder="Pergunte sobre este relatório..."></textarea>
+            <button class="drawer-send-btn" id="drawer-send-btn" aria-label="Enviar" disabled>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <line x1="22" y1="2" x2="11" y2="13"></line>
+                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+              </svg>
+            </button>
+          </div>
+          <p class="drawer-input-hint">Enter para enviar &nbsp;·&nbsp; Shift+Enter para nova linha</p>
+        </div>
+      </aside>`;
+
+    document.body.append(drawerFrag.content.cloneNode(true));
+
+    // Inicializa o módulo de chat (report-chat.js deve estar carregado na página)
+    window.reportChatInit && window.reportChatInit();
   }
 
   // -----------------------------------------------------------------------
