@@ -25,7 +25,15 @@
             </svg>
             <span>Nova Análise</span>
           </a>
-          <a href="/health" target="_blank" rel="noopener" class="navbar__link navbar__link--ghost">
+          <a href="/training/" class="navbar__link {% block nav_training %}{% endblock %}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="3" />
+              <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+              <path d="M4.93 4.93a10 10 0 0 0 0 14.14" />
+            </svg>
+            <span>Fine-tuning</span>
+          </a>
+          <a href="/status/" class="navbar__link {% block nav_status %}{% endblock %}">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
             </svg>

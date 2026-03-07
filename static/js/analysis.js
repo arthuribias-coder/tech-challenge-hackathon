@@ -107,6 +107,16 @@
     clearStepper();
     reportSection.innerHTML = "";
 
+    // Feedback imediato — ativa primeiro passo enquanto o upload ocorre
+    {
+      const fill = document.getElementById("stepper-fill");
+      if (fill) fill.style.width = "3%";
+      const counter = document.getElementById("stepper-counter");
+      if (counter) counter.textContent = "Enviando diagrama...";
+      const firstStep = stepperEl?.querySelector("#step-validate_diagram");
+      if (firstStep) firstStep.classList.add("step--active");
+    }
+
     try {
       // Passo 1: upload do arquivo
       const formData = new FormData();
@@ -474,26 +484,12 @@
               <p class="drawer-header__subtitle">Especialista em segurança &bull; contexto deste relatório</p>
             </div>
           </div>
-          <button class="drawer-debug-btn" id="drawer-debug-btn" aria-label="Painel de debug" title="Debug">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-              <polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline>
-            </svg>
-          </button>
           <button class="drawer-close-btn" id="drawer-close-btn" aria-label="Fechar chat">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
               <line x1="18" y1="6" x2="6" y2="18"></line>
               <line x1="6" y1="6" x2="18" y2="18"></line>
             </svg>
           </button>
-        </div>
-        <!-- Painel de debug: oculto por padrão -->
-        <div class="drawer-debug-panel" id="drawer-debug-panel" style="display:none">
-          <div class="drawer-debug-toolbar">
-            <span class="drawer-debug-title">LangGraph Events</span>
-            <button class="drawer-debug-copy-btn" id="drawer-debug-copy-btn" title="Copiar todos os eventos">Copiar</button>
-            <button class="drawer-debug-clear-btn" id="drawer-debug-clear-btn" title="Limpar">Limpar</button>
-          </div>
-          <pre class="drawer-debug-log" id="drawer-debug-log"></pre>
         </div>
         <div class="drawer-messages" id="drawer-messages">
           <div class="drawer-welcome">

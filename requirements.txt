@@ -17,4 +17,13 @@ langgraph>=0.6.0
 opencv-python-headless>=4.10.0
 # Opcional — lazy import, nao bloqueia inicializacao
 ultralytics>=8.3.0
-# easyocr>=1.7.0
+# Hugging Face — hub, datasets e modelos (download direto sem ferramenta externa)
+huggingface-hub>=0.23.0
+datasets>=2.16.0
+tokenizers>=0.19.0
+safetensors>=0.4.0
+pyarrow>=14.0.0
+# Roboflow — download de datasets do Universe (requer ROBOFLOW_API_KEY)
+roboflow>=1.1.0
+# OCR para detecção de texto em diagramas
+easyocr>=1.7.0
