@@ -23,29 +23,61 @@ env/
 .idea/
 *.swp
 
-# Uploads
-uploads/
-*.jpg
-*.jpeg
-*.png
-*.gif
-*.bmp
-!static/img/
+# ---------------------------------------------------------------------------
+# Diretórios de runtime — ignorar conteúdo, preservar estrutura via .gitkeep
+# ---------------------------------------------------------------------------
 
-# Tests / Coverage
+# Uploads: imagens enviadas pelos usuários + relatórios JSON gerados
+uploads/*
+!uploads/.gitkeep
+
+# ---------------------------------------------------------------------------
+# Fine-tuning YOLOv8 — dados e artefatos gerados em runtime
+# ---------------------------------------------------------------------------
+
+# Dataset de treino — gerado automaticamente via "Baixar e Mesclar Datasets" na UI
+# images/ e labels/ são recriados pelo merge_datasets.py; data.yaml é versionado
+app/data/training/images/
+app/data/training/labels/
+# Diretórios temporários de download e cache (fontes brutas)
+app/data/training/roboflow_download/
+app/data/training/extra_downloads/
+app/data/training/hf_cache/
+app/data/training/hf_download/
+
+# Modelos fine-tuned (binários grandes — não versionar)
+app/models/finetuned/*
+!app/models/finetuned/.gitkeep
+
+# Artefatos do YOLO trainer (runs dentro de finetuned/)
+app/models/finetuned/runs/
+
+# Artefatos YOLO gerados na raiz (inference / detect do YOLO-World)
+runs/
+
+# ---------------------------------------------------------------------------
+# ML Models — binários de modelo (globais)
+# ---------------------------------------------------------------------------
+*.pt
+*.pth
+*.onnx
+*.weights
+
+# ---------------------------------------------------------------------------
+# Testes / Cobertura
+# ---------------------------------------------------------------------------
 .coverage
 htmlcov/
 .pytest_cache/
 .mypy_cache/
 
+# ---------------------------------------------------------------------------
 # Logs
+# ---------------------------------------------------------------------------
 *.log
 
+# ---------------------------------------------------------------------------
 # OS
+# ---------------------------------------------------------------------------
 .DS_Store
 Thumbs.db
-# ML Models
-*.pt
-*.pth
-*.onnx
-*.weights

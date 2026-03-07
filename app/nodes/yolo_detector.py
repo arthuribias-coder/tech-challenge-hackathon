@@ -18,7 +18,7 @@ import importlib.util
 import logging
 import math
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 import cv2
 import numpy as np
@@ -193,6 +193,58 @@ def _run_yolo_world(image_path: Path) -> list[dict[str, Any]]:
     return detections
 
 
+def _load_finetuned_model() -> Optional[object]:
+    """
+    Carrega modelo YOLO fine-tuned se disponível.
+    Prefere o mais recente por timestamp no nome do arquivo.
+    Fallback para None se nenhum modelo fine-tuned existir.
+    """
+    from app.config import settings  # noqa: PLC0415
+
+    models_dir = Path(settings.finetuned_models_dir)
+    if not models_dir.exists():
+        return None
+
+    # Buscar modelos .pt ordenados por timestamp decrescente
+    model_files = sorted(models_dir.glob("yolov8_stride_*.pt"), reverse=True)
+    if not model_files:
+        return None
+
+    try:
+        latest_model = model_files[0]
+        from ultralytics import YOLO  # noqa: PLC0415
+
+        model = YOLO(str(latest_model))
+        logger.info(f"[detect_shapes] Modelo fine-tuned carregado: {latest_model.name}")
+        return model
+    except Exception as exc:
+        logger.warning(f"[detect_shapes] Erro ao carregar modelo fine-tuned: {exc}")
+        return None
+
+
+def _run_finetuned_yolo(image_path: Path, model: object) -> list[dict[str, Any]]:
+    """Executa inferência com modelo YOLO fine-tuned."""
+    results = model.predict(str(image_path), verbose=False, conf=YOLO_CONFIDENCE_THRESHOLD)
+
+    detections: list[dict[str, Any]] = []
+    for result in results:
+        for box in result.boxes:
+            x1, y1, x2, y2 = [int(v) for v in box.xyxy[0].tolist()]
+            # Tentar usar names do modelo se disponível
+            label = result.names.get(int(box.cls[0]), "component") if hasattr(result, "names") else "component"
+            detections.append({
+                "id": len(detections),
+                "shape_type": "yolo_finetuned",
+                "label": label,
+                "confidence": float(box.conf[0]),
+                "bbox": [x1, y1, x2, y2],
+                "area": float((x2 - x1) * (y2 - y1)),
+                "text": label,
+            })
+
+    return detections
+
+
 async def detect_shapes_node(state: AnalysisState) -> dict:
     """
     Nó LangGraph: detecta elementos visuais no diagrama.
@@ -225,21 +277,30 @@ async def detect_shapes_node(state: AnalysisState) -> dict:
         # 3. Associação texto ↔ forma
         shapes = _associate_text_to_shapes(shapes, texts)
 
-        # 4. YOLO-World (enriquecimento opcional)
+        # 4. YOLO — Fine-tuned preferido, fallback para YOLO-World
         yolo_detections: list[dict] = []
         if _ULTRALYTICS_AVAILABLE:
             try:
-                yolo_detections = _run_yolo_world(image_path)
-                logger.info("[detect_shapes] %d ícones detectados via YOLO-World", len(yolo_detections))
+                # Tentar carregar modelo fine-tuned
+                finetuned_model = _load_finetuned_model()
+                if finetuned_model:
+                    yolo_detections = _run_finetuned_yolo(image_path, finetuned_model)
+                    logger.info("[detect_shapes] %d componentes detectados via YOLO fine-tuned", len(yolo_detections))
+                else:
+                    # Fallback para YOLO-World
+                    yolo_detections = _run_yolo_world(image_path)
+                    logger.info("[detect_shapes] %d ícones detectados via YOLO-World", len(yolo_detections))
             except Exception as exc:
-                logger.warning("[detect_shapes] YOLO-World falhou: %s — ignorando", exc)
+                logger.warning("[detect_shapes] YOLO falhou: %s — ignorando", exc)
 
         # Merge: YOLO detections + OpenCV shapes (deduplicação por sobreposição futura)
         all_detections = yolo_detections + shapes
 
-        # Considera que temos detecções úteis se há textos associados às formas
+        # Considera que temos detecções úteis se:
+        # 1. YOLO (fine-tuned ou World) encontrou componentes semânticos, OU
+        # 2. OpenCV+OCR encontrou formas com texto suficiente para o LLM mapear
         shapes_with_text = [s for s in shapes if s.get("text")]
-        has_useful_detections = len(shapes_with_text) >= 2
+        has_useful_detections = len(yolo_detections) >= 1 or len(shapes_with_text) >= 2
 
         return {
             "detections": all_detections,

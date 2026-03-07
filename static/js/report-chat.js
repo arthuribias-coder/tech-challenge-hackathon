@@ -27,11 +27,6 @@ window.reportChatInit = function reportChatInit() {
   const messagesEl = document.getElementById("drawer-messages");
   const inputEl = document.getElementById("drawer-input");
   const sendBtn = document.getElementById("drawer-send-btn");
-  const debugBtn = document.getElementById("drawer-debug-btn");
-  const debugPanel = document.getElementById("drawer-debug-panel");
-  const debugLog = document.getElementById("drawer-debug-log");
-  const debugCopyBtn = document.getElementById("drawer-debug-copy-btn");
-  const debugClearBtn = document.getElementById("drawer-debug-clear-btn");
 
   if (!fab || !drawer || !messagesEl) return;
 
@@ -50,43 +45,6 @@ window.reportChatInit = function reportChatInit() {
 
   let isStreaming = false;
   let drawerOpen = false;
-  let debugOpen = false;
-  let debugEntries = [];
-
-  // -------------------------------------------------------------------------
-  // Painel de debug
-  // -------------------------------------------------------------------------
-  function toggleDebug() {
-    debugOpen = !debugOpen;
-    debugPanel.style.display = debugOpen ? "flex" : "none";
-    debugBtn && debugBtn.classList.toggle("drawer-debug-btn--active", debugOpen);
-  }
-
-  function appendDebugEntry(payload) {
-    const ts = new Date().toISOString().slice(11, 23);
-    const line = `[${ts}] ${JSON.stringify(payload)}`;
-    debugEntries.push(line);
-    if (debugLog) {
-      debugLog.textContent += line + "\n";
-      debugLog.scrollTop = debugLog.scrollHeight;
-    }
-  }
-
-  debugBtn && debugBtn.addEventListener("click", toggleDebug);
-
-  debugCopyBtn &&
-    debugCopyBtn.addEventListener("click", () => {
-      navigator.clipboard.writeText(debugEntries.join("\n")).then(() => {
-        debugCopyBtn.textContent = "Copiado!";
-        setTimeout(() => (debugCopyBtn.textContent = "Copiar"), 1500);
-      });
-    });
-
-  debugClearBtn &&
-    debugClearBtn.addEventListener("click", () => {
-      debugEntries = [];
-      if (debugLog) debugLog.textContent = "";
-    });
 
   // -------------------------------------------------------------------------
   // Configuração do Markdown
@@ -305,7 +263,7 @@ window.reportChatInit = function reportChatInit() {
           }
 
           if (event.type === "debug") {
-            appendDebugEntry(event.payload);
+            // eventos de debug agora visíveis em /status
           } else if (event.type === "token") {
             if (firstToken) {
               bubble.innerHTML = "";
@@ -322,17 +280,15 @@ window.reportChatInit = function reportChatInit() {
             appendBlockedMessage(event.reason || "Pergunta fora do escopo desta análise.");
             break;
           } else if (event.type === "error") {
-            appendDebugEntry({ EVENT_ERROR: event.message });
             bubble.textContent = "Erro: " + event.message;
             break;
           }
         }
       }
 
-      // Se não recebemos nenhum token: mostra mensagem e abre o debug automaticamente
+      // Se não recebemos nenhum token: mostra mensagem
       if (firstToken) {
-        bubble.textContent = "(Sem resposta — verifique o painel de debug)";
-        if (!debugOpen) toggleDebug();
+        bubble.textContent = "(Sem resposta — verifique os logs em /status)";
       }
     } catch (err) {
       bubble.textContent = "Erro de conexão: " + err.message;

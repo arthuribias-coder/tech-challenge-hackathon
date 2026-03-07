@@ -4,6 +4,7 @@ Modelagem de ameaças com IA a partir de diagramas de arquitetura de software.
 """
 
 import logging
+import warnings
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import AsyncIterator
@@ -15,13 +16,21 @@ from fastapi.templating import Jinja2Templates
 
 from app.config import settings
 from app.constants import APP_VERSION, TEMPLATES_DIRECTORY
-from app.routers import analysis, report_chat
+from app.routers import analysis, report_chat, status, training
+import app.utils.log_buffer as _log_buf
 
 logging.basicConfig(
     level=logging.DEBUG if settings.debug else logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
 )
 logger = logging.getLogger(__name__)
+
+# Suprime FutureWarning do google.api_core sobre Python < 3.10
+# (warning informativo sem impacto funcional; remover ao migrar para Python 3.10+)
+warnings.filterwarnings("ignore", category=FutureWarning, module="google.api_core")
+
+# Instala o handler de buffer de logs para exibição em /status
+_log_buf.install(level=logging.DEBUG)
 
 
 @asynccontextmanager
@@ -48,6 +57,8 @@ app.mount("/uploads", StaticFiles(directory=settings.upload_dir), name="uploads"
 
 app.include_router(analysis.router)
 app.include_router(report_chat.router)
+app.include_router(training.router)
+app.include_router(status.router)
 
 templates = Jinja2Templates(directory=TEMPLATES_DIRECTORY)
 

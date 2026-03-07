@@ -1,0 +1,475 @@
+{% extends "base.html" %} {% block title %}Status & Logs — STRIDE Threat Modeler{% endblock %} {% block nav_status %}nav-active{% endblock %} {% block head %}
+<style>
+  .status-page {
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+
+  .status-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 14px;
+    margin-bottom: 20px;
+  }
+
+  .status-card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: 18px 20px;
+    box-shadow: var(--shadow);
+  }
+
+  .status-card .sc-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--color-text-muted);
+    margin-bottom: 6px;
+  }
+
+  .status-card .sc-value {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--color-text);
+    font-family: "Courier New", monospace;
+  }
+
+  .status-card .sc-sub {
+    font-size: 12px;
+    color: var(--color-text-muted);
+    margin-top: 3px;
+  }
+
+  .dot-ok {
+    color: var(--color-success);
+  }
+  .dot-warn {
+    color: #f6ad55;
+  }
+  .dot-err {
+    color: var(--color-danger);
+  }
+
+  /* ── Log viewer ────────────────────────────────────────────────── */
+  .log-section {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: 20px 24px;
+    box-shadow: var(--shadow);
+  }
+
+  .log-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+  }
+
+  .log-toolbar h2 {
+    font-size: 15px;
+    font-weight: 700;
+    flex: 1;
+    margin: 0;
+  }
+
+  .log-filter-group {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .log-filter-btn {
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface2);
+    color: var(--color-text-muted);
+    transition:
+      background 0.15s,
+      color 0.15s;
+  }
+
+  .log-filter-btn.active {
+    background: var(--color-accent);
+    color: #fff;
+    border-color: var(--color-accent);
+  }
+  .log-filter-btn.f-debug {
+  }
+  .log-filter-btn.f-info {
+  }
+  .log-filter-btn.f-warning {
+    color: #f6ad55;
+    border-color: rgba(243, 156, 18, 0.4);
+  }
+  .log-filter-btn.f-warning.active {
+    background: rgba(243, 156, 18, 0.8);
+    color: #fff;
+    border-color: transparent;
+  }
+  .log-filter-btn.f-error {
+    color: var(--color-danger);
+    border-color: rgba(231, 76, 60, 0.4);
+  }
+  .log-filter-btn.f-error.active {
+    background: var(--color-danger);
+    color: #fff;
+    border-color: transparent;
+  }
+
+  .log-action-btn {
+    padding: 5px 12px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--color-border);
+    background: var(--color-surface2);
+    color: var(--color-text-muted);
+    font-size: 12px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+
+  .log-action-btn:hover {
+    background: var(--color-border);
+    color: var(--color-text);
+  }
+
+  .log-status-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--color-text-muted);
+    margin-bottom: 10px;
+  }
+
+  .log-live-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--color-success);
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+
+  .log-live-dot.disconnected {
+    background: var(--color-danger);
+    animation: none;
+  }
+
+  @keyframes pulse {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.3;
+    }
+  }
+
+  #log-container {
+    background: #0d1117;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    padding: 12px;
+    height: 540px;
+    overflow-y: auto;
+    font-family: "Courier New", "Consolas", monospace;
+    font-size: 12.5px;
+    line-height: 1.6;
+    scroll-behavior: smooth;
+  }
+
+  .log-line {
+    display: flex;
+    gap: 10px;
+    padding: 1px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  }
+
+  .log-line:last-child {
+    border-bottom: none;
+  }
+
+  .log-ts {
+    color: #6e7681;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .log-lvl {
+    width: 52px;
+    flex-shrink: 0;
+    font-weight: 700;
+    text-align: right;
+  }
+
+  .log-name {
+    color: #79c0ff;
+    white-space: nowrap;
+    flex-shrink: 0;
+    max-width: 220px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .log-msg {
+    color: #e6edf3;
+    word-break: break-word;
+    white-space: pre-wrap;
+    flex: 1;
+  }
+
+  .log-debug .log-lvl {
+    color: #6e7681;
+  }
+  .log-info .log-lvl {
+    color: #58a6ff;
+  }
+  .log-warning .log-lvl {
+    color: #f0883e;
+  }
+  .log-error .log-lvl {
+    color: #f85149;
+  }
+  .log-critical .log-lvl {
+    color: #ff7b72;
+    font-weight: 900;
+  }
+  .log-error .log-msg,
+  .log-critical .log-msg {
+    color: #ffa198;
+  }
+
+  #log-empty {
+    color: #6e7681;
+    font-style: italic;
+    padding: 20px 0;
+    text-align: center;
+  }
+
+  .scroll-lock-label {
+    font-size: 11px;
+    color: var(--color-text-muted);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    cursor: pointer;
+    user-select: none;
+  }
+</style>
+{% endblock %} {% block content %}
+<div class="status-page">
+  <!-- Cards de info geral -->
+  <div class="status-grid">
+    <div class="status-card">
+      <div class="sc-label">Versão</div>
+      <div class="sc-value">{{ version }}</div>
+      <div class="sc-sub">STRIDE Threat Modeler</div>
+    </div>
+    <div class="status-card">
+      <div class="sc-label">API</div>
+      <div class="sc-value dot-ok" id="sc-api">—</div>
+      <div class="sc-sub"><a href="/health" target="_blank" style="color: inherit">/health</a></div>
+    </div>
+    <div class="status-card">
+      <div class="sc-label">Modo Debug</div>
+      <div class="sc-value {% if debug %}dot-warn{% else %}dot-ok{% endif %}">{{ "ON" if debug else "OFF" }}</div>
+      <div class="sc-sub">configurado em .env</div>
+    </div>
+    <div class="status-card">
+      <div class="sc-label">Entradas no buffer</div>
+      <div class="sc-value" id="sc-count">0</div>
+      <div class="sc-sub">últimas 500 linhas</div>
+    </div>
+  </div>
+
+  <!-- Log viewer -->
+  <div class="log-section">
+    <div class="log-toolbar">
+      <h2>📋 Logs da Aplicação</h2>
+      <div class="log-filter-group">
+        <button class="log-filter-btn active" data-level="ALL">Todos</button>
+        <button class="log-filter-btn f-debug" data-level="DEBUG">DEBUG</button>
+        <button class="log-filter-btn f-info" data-level="INFO">INFO</button>
+        <button class="log-filter-btn f-warning" data-level="WARNING">WARN</button>
+        <button class="log-filter-btn f-error" data-level="ERROR">ERROR</button>
+      </div>
+      <label class="scroll-lock-label">
+        <input type="checkbox" id="chk-scroll" checked />
+        Auto-scroll
+      </label>
+      <button class="log-action-btn" onclick="copyLogs()">Copiar</button>
+      <button class="log-action-btn" onclick="clearLogs()">Limpar</button>
+    </div>
+
+    <div class="log-status-bar">
+      <span class="log-live-dot" id="live-dot"></span>
+      <span id="live-label">Conectando...</span>
+      <span style="margin-left: auto" id="visible-count"></span>
+    </div>
+
+    <div id="log-container">
+      <div id="log-empty">Aguardando logs...</div>
+    </div>
+  </div>
+</div>
+{% endblock %} {% block scripts %}
+<script>
+  "use strict";
+
+  const container = document.getElementById("log-container");
+  const emptyEl = document.getElementById("log-empty");
+  const liveDot = document.getElementById("live-dot");
+  const liveLabel = document.getElementById("live-label");
+  const scCount = document.getElementById("sc-count");
+  const visCount = document.getElementById("visible-count");
+  const chkScroll = document.getElementById("chk-scroll");
+
+  let allEntries = [];
+  let activeFilter = "ALL";
+  let es = null;
+
+  // ── Level ordering ──────────────────────────────────────────────────────────
+  const LEVEL_ORDER = { DEBUG: 0, INFO: 1, WARNING: 2, ERROR: 3, CRITICAL: 4 };
+  const filterOrder = LEVEL_ORDER[activeFilter] ?? 0;
+
+  // ── Render ───────────────────────────────────────────────────────────────────
+  function buildLine(entry) {
+    const div = document.createElement("div");
+    div.className = `log-line ${entry.level_class}`;
+    div.dataset.level = entry.level;
+    div.innerHTML =
+      `<span class="log-ts">${escHtml(entry.timestamp)}</span>` +
+      `<span class="log-lvl">${escHtml(entry.level)}</span>` +
+      `<span class="log-name" title="${escHtml(entry.logger)}">${escHtml(shortName(entry.logger))}</span>` +
+      `<span class="log-msg">${escHtml(entry.message)}</span>`;
+    return div;
+  }
+
+  function escHtml(s) {
+    return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+
+  function shortName(name) {
+    // mantém os 2 últimos segmentos: app.nodes.stride_node → nodes.stride_node
+    const parts = name.split(".");
+    return parts.length > 2 ? parts.slice(-2).join(".") : name;
+  }
+
+  function appendEntry(entry) {
+    allEntries.push(entry);
+    scCount.textContent = allEntries.length;
+    if (emptyEl) emptyEl.remove();
+
+    const show = shouldShow(entry);
+    const line = buildLine(entry);
+    if (!show) line.style.display = "none";
+    container.appendChild(line);
+
+    updateVisibleCount();
+    if (chkScroll.checked) container.scrollTop = container.scrollHeight;
+  }
+
+  function shouldShow(entry) {
+    if (activeFilter === "ALL") return true;
+    const entryOrd = LEVEL_ORDER[entry.level] ?? 0;
+    const filterOrd = LEVEL_ORDER[activeFilter] ?? 0;
+    return entryOrd >= filterOrd;
+  }
+
+  function applyFilter() {
+    let visible = 0;
+    container.querySelectorAll(".log-line").forEach((el) => {
+      const show = activeFilter === "ALL" || (LEVEL_ORDER[el.dataset.level] ?? 0) >= (LEVEL_ORDER[activeFilter] ?? 0);
+      el.style.display = show ? "" : "none";
+      if (show) visible++;
+    });
+    updateVisibleCount();
+  }
+
+  function updateVisibleCount() {
+    const total = container.querySelectorAll(".log-line").length;
+    const visible = container.querySelectorAll(".log-line:not([style*='display: none'])").length;
+    visCount.textContent = activeFilter === "ALL" ? `${total} entradas` : `${visible} / ${total} entradas`;
+  }
+
+  // ── Filter buttons ───────────────────────────────────────────────────────────
+  document.querySelectorAll(".log-filter-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".log-filter-btn").forEach((b) => b.classList.remove("active"));
+      btn.classList.add("active");
+      activeFilter = btn.dataset.level;
+      applyFilter();
+    });
+  });
+
+  // ── SSE ──────────────────────────────────────────────────────────────────────
+  function connect() {
+    if (es) es.close();
+    es = new EventSource("/status/logs/stream");
+
+    es.onopen = () => {
+      liveDot.classList.remove("disconnected");
+      liveLabel.textContent = "Conectado — recebendo logs em tempo real";
+    };
+
+    es.onmessage = (evt) => {
+      try {
+        appendEntry(JSON.parse(evt.data));
+      } catch (e) {
+        /* ignora parse error */
+      }
+    };
+
+    es.onerror = () => {
+      liveDot.classList.add("disconnected");
+      liveLabel.textContent = "Desconectado — reconectando...";
+      es.close();
+      setTimeout(connect, 3000);
+    };
+  }
+
+  connect();
+
+  // ── Actions ──────────────────────────────────────────────────────────────────
+  function copyLogs() {
+    const text = allEntries.map((e) => `[${e.timestamp}] ${e.level.padEnd(8)} ${e.logger}: ${e.message}`).join("\n");
+    navigator.clipboard.writeText(text).then(() => {
+      const btn = document.querySelector(".log-action-btn");
+      const orig = btn.textContent;
+      btn.textContent = "Copiado!";
+      setTimeout(() => (btn.textContent = orig), 1500);
+    });
+  }
+
+  function clearLogs() {
+    allEntries = [];
+    container.innerHTML = "";
+    scCount.textContent = "0";
+    updateVisibleCount();
+  }
+
+  // ── Health check ─────────────────────────────────────────────────────────────
+  async function checkHealth() {
+    try {
+      const r = await fetch("/health");
+      const d = await r.json();
+      const el = document.getElementById("sc-api");
+      el.textContent = d.status === "ok" ? "OK" : d.status;
+      el.className = "sc-value " + (d.status === "ok" ? "dot-ok" : "dot-err");
+    } catch {
+      const el = document.getElementById("sc-api");
+      el.textContent = "Erro";
+      el.className = "sc-value dot-err";
+    }
+  }
+  checkHealth();
+  setInterval(checkHealth, 30_000);
+</script>
+{% endblock %}

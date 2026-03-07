@@ -1,0 +1,13 @@
+path: /home/aineto/workspaces/POS/TC-5/app/data/training
+train: images/train
+val: images/val
+nc: 8
+names:
+  - API
+  - Database
+  - ExternalSystem
+  - Queue
+  - Service
+  - Storage
+  - User
+  - WebServer
