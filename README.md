@@ -32,89 +32,44 @@ Framework de ameaças que categoriza vulnerabilidades em 6 dimensões:
 
 ### Fluxo End-to-End
 
-```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                    STRIDE Threat Modeler Pipeline                        │
-└─────────────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+    Upload["User Upload<br/>(PNG/JPEG)"] --> Validate
 
-User Upload (PNG/JPEG)
-       │
-       ▼
-┌──────────────────────────────────────────────────────────────────────┐
-│ STAGE 0: Validação de Diagrama                                       │
-├──────────────────────────────────────────────────────────────────────┤
-│                                                                       │
-│  ┌──────────────────────────────────────────────────────────────┐  │
-│  │ Gemini 2.0-Flash-Lite: é realmente um diagrama de arq.?      │  │
-│  │ → Se não → encerra pipeline com mensagem de erro             │  │
-│  │ → Se sim → prossegue para Stage 1                            │  │
-│  └──────────────────────────────────────────────────────────────┘  │
-│                                                                       │
-└──────────────────────────────────────────────────────────────────────┘
-       │
-       ▼
-┌──────────────────────────────────────────────────────────────────────┐
-│ STAGE 1: Extração de Componentes (Hybrid Approach)                   │
-├──────────────────────────────────────────────────────────────────────┤
-│                                                                       │
-│  ┌──────────────────────┐                                           │
-│  │ YOLO-World Detector  │ Detecta formas/caixas no diagrama         │
-│  │ (CV pré-treinado)    │ → Coordenadas, tipos de componentes      │
-│  └──────────┬───────────┘                                           │
-│             │                                                        │
-│             ├─ EasyOCR: Extrai labels/textos                        │
-│             │                                                        │
-│             ├─> has_yolo_detections? ──┐                           │
-│                                         │                           │
-│                         True (60% de redução em tokens)             │
-│                         └──> JSON textual enriquecido               │
-│                                         │                           │
-│                         False (imagem complexa)                     │
-│                         └──> Gemini Vision + Base64                 │
-│                                                                       │
-└──────────────────────────────────────────────────────────────────────┘
-       │
-       ▼
-┌──────────────────────────────────────────────────────────────────────┐
-│ STAGE 2: Análise de Ameaças (LLM + Structured Output)               │
-├──────────────────────────────────────────────────────────────────────┤
-│                                                                       │
-│  ┌────────────────────────────────────┐                             │
-│  │ Google Gemini 2.5-Flash            │ LLM Generativo             │
-│  │ + Pydantic Structured Output      │ IA para análise STRIDE     │
-│  └────────────────┬───────────────────┘                             │
-│                    │                                                  │
-│  Processa: "Diagrama X contém [componentes]"                        │
-│  │                                                                    │
-│  └─> Para cada componente × STRIDE categoria:                       │
-│      ├─ Identifica ameaças potenciais                              │
-│      ├─ Estima severidade (CRÍTICA/ALTA/MÉDIA/BAIXA)              │
-│      └─ Recomenda contramedidas específicas                        │
-│                                                                       │
-└──────────────────────────────────────────────────────────────────────┘
-       │
-       ▼
-┌──────────────────────────────────────────────────────────────────────┐
-│ STAGE 3: Geração de Relatório                                        │
-├──────────────────────────────────────────────────────────────────────┤
-│                                                                       │
-│  JSON Estruturado (OpenAPI Schema) → HTML + CSS interativo          │
-│  │                                                                    │
-│  ├─ Componentes identificados                                        │
-│  ├─ Matriz STRIDE (6 categorias × N componentes)                    │
-│  ├─ Filtros por severidade e categoria                             │
-│  └─ Export para relatórios de conformidade                         │
-│                                                                       │
-└──────────────────────────────────────────────────────────────────────┘
+    subgraph stage0 ["STAGE 0: Validação de Diagrama"]
+        Validate["validate_diagram<br/>Gemini 2.0-Flash-Lite"]
+    end
+
+    Validate -->|"É um diagrama"| Detect
+    Validate -->|"Não é diagrama"| Error["Pipeline encerrado<br/>com mensagem de erro"]
+
+    subgraph stage1 ["STAGE 1: Extração de Componentes"]
+        Detect["detect_shapes<br/>YOLO-World + EasyOCR"]
+        Detect -->|"has_yolo_detections = true<br/>(~60% menos tokens)"| Map["map_components<br/>JSON textual enriquecido"]
+        Detect -->|"has_yolo_detections = false"| Vision["vision_fallback<br/>Gemini Vision + Base64"]
+    end
+
+    subgraph stage2 ["STAGE 2: Análise de Ameaças"]
+        Stride["analyze_stride<br/>Gemini 2.5-Flash<br/>+ Pydantic Structured Output"]
+    end
+
+    Map --> Stride
+    Vision --> Stride
+
+    subgraph stage3 ["STAGE 3: Geração de Relatório"]
+        Compile["compile_report<br/>JSON + HTML interativo"]
+    end
+
+    Stride --> Compile
+    Compile --> Report["Relatório STRIDE Final"]
 ```
 
-### Chat Agêntico Opcional
+### Chat Contextual e Agêntico
 
-Além da análise automática, a aplicação oferece um **ReAct agent** (LangChain) para:
+A aplicação oferece dois modos de chat com IA:
 
-- Responder dúvidas sobre STRIDE e cada categoria
-- Interpretação contextual do relatório gerado
-- Sugestões de mitigation baseadas em padrões conhecidos
+1. **Chat sobre Relatório** (ativo): Vinculado a uma análise específica, com guardrails de escopo e contexto injetado do relatório gerado. Usa `report_chat_graph.py`.
+2. **Chat Agêntico STRIDE** (standalone, não montado): ReAct agent (LangGraph) com 4 tools especializadas (`explain_stride_category`, `calculate_risk_score`, `map_to_mitre_attack`, `get_owasp_controls`). Definido em `chat_graph.py` mas não incluído nos routers ativos da aplicação.
 
 ## 🤖 Modelos e Técnicas de IA
 
@@ -122,7 +77,7 @@ Além da análise automática, a aplicação oferece um **ReAct agent** (LangCha
 
 #### YOLO-World
 
-- **Modelo**: YOLOv8s-World (Segment Anything meets YOLO)
+- **Modelo**: YOLOv8s-World (Open-Vocabulary Object Detection)
 - **Propósito**: Detecção de objetos zero-shot em diagramas
 - **Vantagem**: Reconhece caixas/formas sem necessidade de retreinamento
 - **Saída**: Coordenadas (bbox), confiança, labels textuais
@@ -247,56 +202,41 @@ ROBOFLOW_API_KEY=rf_...                      # Opcional — para download de dat
 
 ```
 
-## Executando a Aplicação
-
-```bash
-uvicorn app.main:app --reload
-```
-
-Acesse: [http://localhost:8000](http://localhost:8000)
-
-## Executando os Testes
-
-```bash
-# Instale as dependências de desenvolvimento
-pip install -r requirements-dev.txt
-
-# Execute os testes com cobertura
-pytest
-```
-
 ## 📂 Estrutura do Projeto e Componentes
 
 ### Arquitetura em Camadas
 
-```
-CAMADA DE APRESENTAÇÃO
-├─ FastAPI + Jinja2 Templates
-└─ Static assets (CSS/JS SSE)
+```mermaid
+flowchart TB
+    subgraph apresentacao ["Camada de Apresentação"]
+        A1["FastAPI + Jinja2 Templates"]
+        A2["Static Assets (CSS/JS SSE)"]
+    end
 
-      ↓
+    subgraph orquestracao ["Camada de Orquestração (LangGraph)"]
+        B1["analysis_graph.py — Pipeline STRIDE"]
+        B2["report_chat_graph.py — Chat contextual"]
+        B3["chat_graph.py — ReAct agent (standalone)"]
+    end
 
-CAMADA DE ORQUESTRAÇÃO (LangGraph)
-├─ analysis_graph.py     → Nós: validate → detect → map/vision → analyze → compile
-├─ chat_graph.py         → ReAct agent com tools (standalone)
-└─ report_chat_graph.py  → Chat contextual sobre relatório gerado
+    subgraph processamento ["Camada de Processamento (Nodes)"]
+        C1["diagram_validator — Validação de entrada"]
+        C2["yolo_detector — CV: detecção de formas"]
+        C3["component_mapper — Extração de texto (OCR)"]
+        C4["stride_node — Análise STRIDE com Gemini"]
+        C5["report_compiler — Formatação final"]
+    end
 
-      ↓
+    subgraph utilitarios ["Camada de Utilitários"]
+        D1["llm.py — Factory para Gemini"]
+        D2["sse.py — Server-Sent Events streaming"]
+        D3["config.py — Gestão de configurações"]
+        D4["log_buffer.py — Buffer de logs para /status/"]
+    end
 
-CAMADA DE PROCESSAMENTO (Nodes)
-├─ yolo_detector        → CV: detecção de formas
-├─ component_mapper     → Extração de texto (OCR)
-├─ stride_node          → Análise STRIDE com Gemini
-├─ report_compiler      → Formatação final
-└─ diagram_validator    → Validação de entrada
-
-      ↓
-
-CAMADA DE UTILITÁRIOS
-├─ llm.py              → Factory para Gemini
-├─ sse.py              → Server-Sent Events streaming
-├─ config.py           → Gestão de configurações
-└─ log_buffer.py       → Buffer de logs para /status/
+    apresentacao --> orquestracao
+    orquestracao --> processamento
+    processamento --> utilitarios
 ```
 
 ### Estrutura de Arquivos
@@ -344,6 +284,7 @@ app/
     ├── index.html              # Upload de diagrama
     ├── report.html             # Relatório interativo com filtros STRIDE
     ├── chat.html               # Interface do agente
+    ├── status.html             # Status e logs em tempo real
     └── training.html           # Interface de fine-tuning YOLOv8
 ```
 
@@ -366,7 +307,7 @@ O sistema tenta datasets em ordem de qualidade, com fallback automático:
 | Prioridade | Fonte | Datasets | Requisito |
 |:---:|---|---|---|
 | 1º | **Roboflow Universe** | Threat Modeling Architecture, Network Components 2, Architecture Symbols | `ROBOFLOW_API_KEY` |
-| 2º | **HuggingFace** | `LibreYOLO/activity-diagrams-qdobr` | `datasets` instalado |
+| 2º | **HuggingFace** | *(sem datasets configurados — reservado para expansão)* | `datasets` instalado |
 | 3º | **Sintético local** | Gerado com OpenCV + anotações automáticas | Apenas `opencv-python` |
 
 ### Datasets Roboflow Configurados
@@ -404,10 +345,11 @@ ROBOFLOW_API_KEY=rf_...
 
 | Parâmetro | Padrão | Descrição |
 |---|:---:|---|
-| `epochs` | 300 | Número de épocas |
+| `epochs` | 100 | Número de épocas |
 | `batch_size` | 8 | Imagens por batch |
-| `img_size` | 1280 | Resolução de entrada |
-| `patience` | 50 | Early stopping |
+| `img_size` | 640 | Resolução de entrada |
+| `patience` | 20 | Early stopping |
+| `workers` | 4 | Workers de dataloader |
 | `resume` | false | Retomar de checkpoint anterior |
 | `demo` | false | Usar COCO128 (sem download) |
 
@@ -467,7 +409,9 @@ mypy app --strict
 | `GET` | `/analysis/{upload_id}/chat/ping` | Verifica se o relatório está disponível para chat |
 | `POST` | `/analysis/{upload_id}/chat/stream` | Chat contextual sobre relatório (SSE streaming) |
 
-### Chat Agêntico STRIDE
+### Chat Agêntico STRIDE (não montado)
+
+> **Nota**: O router do chat agêntico standalone (`chat.py`) está definido mas **não está montado** em `main.py`. O chat contextual sobre relatórios (seção acima) é o canal de chat ativo.
 
 | Método | Rota | Descrição |
 |--------|------|-----------|
@@ -494,7 +438,7 @@ mypy app --strict
 | `GET` | `/training/status` | Status atual do treinamento |
 | `POST` | `/training/cancel` | Cancela treinamento em andamento |
 | `GET` | `/training/models` | Lista modelos fine-tuned disponíveis |
-| `POST` | `/training/delete/{filename}` | Deleta modelo fine-tuned |
+| `POST` | `/training/delete/{model_filename}` | Deleta modelo fine-tuned |
 
 ---
 
